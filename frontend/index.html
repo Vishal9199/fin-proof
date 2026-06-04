@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ledger Sentinel — autonomous reconciliation that refuses to post what it can't prove</title>
+  <meta name="description" content="An autonomous financial-document reconciliation engine. The LLM proposes; deterministic code disposes. Built for the Build at Damco challenge — Engineer + Tech Lead tracks." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./tokens.css" />
+  <link rel="stylesheet" href="./landing.css" />
+</head>
+<body>
+  <!-- ── Nav ──────────────────────────────────────────────────────────── -->
+  <nav class="nav" id="nav">
+    <a class="nav-brand" href="#top">
+      <span class="logo">🛡️</span><span>Ledger Sentinel</span>
+    </a>
+    <div class="nav-links">
+      <a href="#problem">Problem</a>
+      <a href="#tracks">Tracks</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#evals">Evals</a>
+      <a class="nav-cta" href="./app.html">Launch Dashboard <span class="arr">↗</span></a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+  <header class="hero" id="top">
+    <canvas id="rain" class="rain" aria-hidden="true"></canvas>
+    <div class="hero-inner">
+      <div class="eyebrow">BUILD AT DAMCO · ENGINEER + TECH LEAD TRACK</div>
+      <h1 class="hero-title">
+        <span class="w" style="--i:0">Extract.</span>
+        <span class="w" style="--i:1">Verify.</span>
+        <span class="w grn" style="--i:2">Reconcile.</span>
+      </h1>
+      <p class="hero-sub">
+        An autonomous reconciliation engine that turns a messy pile of receipts,
+        bank statements, and UPI screenshots into one trustworthy ledger —
+        <strong>and refuses to post a number it can't prove.</strong>
+      </p>
+      <p class="thesis">// the LLM proposes; deterministic code disposes.</p>
+      <div class="hero-cta">
+        <a class="btn btn-red" href="./app.html">Launch the Dashboard <span class="arr">↗</span></a>
+        <a class="btn btn-ghost" href="https://github.com/mhussam-ai/ledger-sentinel/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">Read the Architecture</a>
+      </div>
+
+      <!-- signature micro-demo: the catch a human would miss -->
+      <div class="anomaly-demo" aria-hidden="true">
+        <div class="ad-row"><span class="ad-src">receipt</span><span class="ad-amt">₹450.00</span></div>
+        <div class="ad-vs">vs</div>
+        <div class="ad-row"><span class="ad-src">bank statement</span><span class="ad-amt">₹540.00</span></div>
+        <div class="ad-verdict">⚠ ANOMALY · amounts disagree → <b>quarantined</b>, not posted</div>
+      </div>
+    </div>
+    <a class="scrollcue" href="#problem" aria-label="Scroll down">↓</a>
+  </header>
+
+  <main>
+    <!-- ── 1. The Problem ─────────────────────────────────────────────── -->
+    <section class="sec" id="problem">
+      <div class="sec-grid">
+        <div class="reveal">
+          <div class="kicker">THE PROBLEM I LIVE EVERY MONTH</div>
+          <h2 class="sec-title">Reconciling money<br />isn't an OCR problem.<br /><span class="grn">It's a trust problem.</span></h2>
+          <p class="lead">
+            My spending is scattered across three card apps, a bank CSV, UPI
+            screenshots, and a wallet of paper receipts. The same coffee shows up
+            twice with two different amounts. A receipt gets double-counted. OCR
+            quietly turns ₹450 into ₹480.
+          </p>
+          <p class="lead">
+            The hard part was never <em>reading</em> the documents. It's
+            <strong>trusting the merged result.</strong> That needs a system —
+            one that extracts in parallel, verifies its own work, links duplicates
+            across sources, and quarantines anything it can't prove instead of
+            silently corrupting the ledger.
+          </p>
+          <div class="wink reveal">
+            <span class="wink-q">“Tracking expenses across UPI apps is a nightmare.”</span>
+            <span class="wink-a">— Build at Damco's own example problem. This is the system answer to it.</span>
+          </div>
+        </div>
+
+        <div class="reveal" style="--i:1">
+          <div class="codewin">
+            <div class="codewin-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">invariant.js</span></div>
+            <pre class="type-target" data-typed="invariant" data-speed="2"></pre>
+          </div>
+          <script type="application/json" class="code-data" data-name="invariant">
+[
+  {"t":"const ","c":"kw"},{"t":"ledger ","c":"fn"},{"t":"= ","c":"punc"},{"t":"reconcile","c":"fn"},{"t":"(sources);\n","c":"punc"},
+  {"t":"\n// the hard part isn't reading documents —\n","c":"com"},
+  {"t":"// it's trusting the merged result.\n\n","c":"com"},
+  {"t":"const ","c":"kw"},{"t":"invariant ","c":"fn"},{"t":"= {\n","c":"punc"},
+  {"t":"  postIf","c":"pink"},{"t":":     ","c":"punc"},{"t":"\"provable\"","c":"str"},{"t":",\n","c":"punc"},
+  {"t":"  onConflict","c":"pink"},{"t":": ","c":"punc"},{"t":"\"quarantine\"","c":"str"},{"t":",  ","c":"punc"},{"t":"// never guess\n","c":"com"},
+  {"t":"  money","c":"pink"},{"t":":      ","c":"punc"},{"t":"Decimal","c":"num"},{"t":",        ","c":"punc"},{"t":"// never float\n","c":"com"},
+  {"t":"};\n","c":"punc"}
+]
+          </script>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 2. Both Tracks ─────────────────────────────────────────────── -->
+    <section class="sec sec-alt" id="tracks">
+      <div class="sec-head reveal">
+        <div class="kicker">ONE SUBMISSION · BOTH TRACKS</div>
+        <h2 class="sec-title center">I didn't pick a track.<br />I shipped both.</h2>
+        <p class="lead center">
+          Damco asks Engineers to <em>build &amp; ship</em> and Tech Leads to
+          <em>design the architecture</em>. This one project does both — same repo,
+          both rubrics. Toggle to see how it satisfies each.
+        </p>
+      </div>
+
+      <div class="toggle reveal" role="tablist" aria-label="Choose a track">
+        <button type="button" class="toggle-btn active" data-toggle="engineer" role="tab">🛠️ Engineer</button>
+        <button type="button" class="toggle-btn" data-toggle="lead" role="tab">🏛️ Tech Lead</button>
+        <span class="toggle-pill" aria-hidden="true"></span>
+      </div>
+
+      <!-- Engineer track -->
+      <div class="track" data-track="engineer">
+        <div class="steps">
+          <div class="step reveal"><div class="step-no">01</div><h3>Pick a complex problem</h3><p>Something that needs a system, not a script. Cross-source financial reconciliation with self-verification.</p></div>
+          <div class="step reveal" style="--i:1"><div class="step-no">02</div><h3>Build &amp; ship it</h3><p>FastAPI · LangGraph state machine · Pandera · RapidFuzz. <strong>16 tests green</strong>, deterministic mock mode, <strong>public repo</strong>.</p></div>
+          <div class="step reveal" style="--i:2"><div class="step-no">03</div><h3>Record a video</h3><p>A live walk-through of the running system catching a real discrepancy — scripted in <code>DEMO.md</code>.</p></div>
+        </div>
+      </div>
+
+      <!-- Tech Lead track -->
+      <div class="track hidden" data-track="lead">
+        <div class="steps">
+          <div class="step reveal"><div class="step-no">01</div><h3>Pick a complex problem</h3><p>The same trust problem — framed as a system with scale, latency, and failure-mode considerations.</p></div>
+          <div class="step reveal" style="--i:1"><div class="step-no">02</div><h3>Design the architecture</h3><p><code>ARCHITECTURE.md</code>: 6 Mermaid diagrams, the state machine, scale math, latency trade-offs, and F1–F8 failure modes.</p></div>
+          <div class="step reveal" style="--i:2"><div class="step-no">03</div><h3>Record a video</h3><p>Present the design like I'm convincing a team — decisions, alternatives, and what would change my mind.</p></div>
+        </div>
+      </div>
+
+      <div class="covers reveal">
+        <div class="covers-head">What the submission covers</div>
+        <div class="covers-grid">
+          <div><span class="ct">Problem framing</span><span class="cd">why it needs a system, not a script</span></div>
+          <div><span class="ct">System design</span><span class="cd">parallel fan-out → verify → reconcile</span></div>
+          <div><span class="ct">Trade-offs</span><span class="cd">LangGraph, Decimal, SSE, two-tier routing</span></div>
+          <div><span class="ct">Failure modes</span><span class="cd">named guardrails F1–F8, honestly</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 3. How it works ────────────────────────────────────────────── -->
+    <section class="sec" id="architecture">
+      <div class="sec-head reveal">
+        <div class="kicker">HOW IT WORKS</div>
+        <h2 class="sec-title center">The LLM proposes.<br />Deterministic code disposes.</h2>
+        <p class="lead center">Every document fans out to its own worker; nothing reaches the posted ledger without clearing a deterministic gate.</p>
+      </div>
+
+      <div class="pipeline reveal">
+        <div class="pnode" style="--i:0"><span class="pi">📥</span><b>Upload</b><span class="ps">receipts · CSV · UPI</span></div>
+        <span class="parrow" style="--i:1">→</span>
+        <div class="pnode" style="--i:2"><span class="pi">🤖</span><b>Fan-out</b><span class="ps">parallel extraction</span></div>
+        <span class="parrow" style="--i:3">→</span>
+        <div class="pnode" style="--i:4"><span class="pi">🔍</span><b>Self-verify</b><span class="ps">confidence + citation gate</span></div>
+        <span class="parrow" style="--i:5">→</span>
+        <div class="pnode" style="--i:6"><span class="pi">🔗</span><b>Reconcile</b><span class="ps">fuzzy amount × date × merchant</span></div>
+        <span class="parrow" style="--i:7">→</span>
+        <div class="pnode pnode-split" style="--i:8">
+          <span class="pi">✅</span><b>POSTED</b>
+          <span class="por">or</span>
+          <span class="pi amber">🟠</span><b class="ambert">QUARANTINE</b>
+        </div>
+      </div>
+      <p class="pipeline-note reveal">Every hop emits a trace span — latency, tokens, cost, faithfulness — to the live AgentOps panel. <a href="https://github.com/mhussam-ai/ledger-sentinel/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">Full design, diagrams &amp; scale math →</a></p>
+    </section>
+
+    <!-- ── 4. Evals — the killer section ──────────────────────────────── -->
+    <section class="sec sec-alt" id="evals">
+      <div class="sec-head reveal">
+        <div class="kicker">WHAT WE MEASURE · AGENTOPS</div>
+        <h2 class="sec-title center">You can't ship trust<br />you haven't <span class="grn">measured</span>.</h2>
+        <p class="lead center">
+          For a system that touches money, the metric that matters isn't accuracy —
+          it's <strong>quarantine recall</strong>: did it catch everything it was
+          supposed to refuse to post? Every change is gated on a labeled golden set.
+        </p>
+      </div>
+
+      <div class="evals-grid">
+        <div class="reveal">
+          <div class="codewin">
+            <div class="codewin-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">pytest</span></div>
+            <pre class="type-target" data-typed="pytest" data-speed="3"></pre>
+          </div>
+          <script type="application/json" class="code-data" data-name="pytest">
+[
+  {"t":"$ ","c":"green"},{"t":"pytest -q\n","c":"dim"},
+  {"t":"................                      ","c":"dim"},{"t":"[100%]\n","c":"num"},
+  {"t":"16 passed","c":"green"},{"t":" in 1.13s\n","c":"dim"}
+]
+          </script>
+        </div>
+
+        <div class="reveal" style="--i:1">
+          <div class="codewin">
+            <div class="codewin-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">python -m evals.run</span></div>
+            <pre class="type-target" data-typed="evals" data-speed="3"></pre>
+          </div>
+          <script type="application/json" class="code-data" data-name="evals">
+[
+  {"t":"  LEDGER SENTINEL — EVAL SCORECARD\n","c":"dim"},
+  {"t":"  ✓ ","c":"green"},{"t":"amount_exact_rate            ","c":"dim"},{"t":"1.000\n","c":"num"},
+  {"t":"  ✓ ","c":"green"},{"t":"quarantine_recall            ","c":"dim"},{"t":"1.000\n","c":"num"},
+  {"t":"  ✓ ","c":"green"},{"t":"quarantine_precision         ","c":"dim"},{"t":"1.000\n","c":"num"},
+  {"t":"  ✓ ","c":"green"},{"t":"link_f1                      ","c":"dim"},{"t":"1.000\n","c":"num"},
+  {"t":"  ✓ ","c":"green"},{"t":"confidence_gate_separation   ","c":"dim"},{"t":"0.440\n","c":"num"},
+  {"t":"  VERDICT: ","c":"dim"},{"t":"PASS ✓","c":"green"},{"t":" — safe to ship\n","c":"dim"}
+]
+          </script>
+        </div>
+      </div>
+
+      <!-- Damco's PASS motif, with our real test files -->
+      <div class="passgrid">
+        <div class="passrow reveal"><span class="pass">PASS</span> test_matching.py <span class="pd">· duplicates collapse, conflicts surface as anomalies</span></div>
+        <div class="passrow reveal" style="--i:1"><span class="pass">PASS</span> test_verify.py <span class="pd">· only provably-good extractions reach VERIFIED</span></div>
+        <div class="passrow reveal" style="--i:2"><span class="pass">PASS</span> test_csv_drift.py <span class="pd">· renamed headers self-heal, garbage quarantines</span></div>
+        <div class="passrow reveal" style="--i:3"><span class="pass">PASS</span> test_api.py <span class="pd">· upload → SSE replay → result, end to end</span></div>
+        <div class="passrow reveal" style="--i:4"><span class="pass">PASS</span> test_evals.py <span class="pd">· quarantine recall = 1.0 is a hard CI gate</span></div>
+      </div>
+
+      <div class="metrics-strip reveal">
+        <div class="ms"><span class="msv" data-count="16">0</span><span class="msl">tests green</span></div>
+        <div class="ms"><span class="msv" data-prefix="₹" data-count="1720">0</span><span class="msl">posted, exact</span></div>
+        <div class="ms"><span class="msv" data-count="1.0" data-decimals="1">0</span><span class="msl">quarantine recall</span></div>
+        <div class="ms"><span class="msv" data-count="8">0</span><span class="msl">workers in parallel</span></div>
+        <div class="ms"><span class="msv">F1–F8</span><span class="msl">named guardrails</span></div>
+      </div>
+    </section>
+
+    <!-- ── 5. Failure modes — honesty ─────────────────────────────────── -->
+    <section class="sec" id="honest">
+      <div class="sec-head reveal">
+        <div class="kicker">WHAT BREAKS — AND THE GUARDRAIL FOR IT</div>
+        <h2 class="sec-title center">When unsure, it quarantines.<br />It never corrupts.</h2>
+        <p class="lead center">Damco asks for honesty about what's broken. Here's what naturally fails, and the named guard that catches it.</p>
+      </div>
+      <div class="fmgrid">
+        <div class="fm reveal"><span class="fmid">F1</span><b>Vision misreads a digit</b><p>Amount extracted twice; if the reads disagree → quarantine.</p></div>
+        <div class="fm reveal" style="--i:1"><span class="fmid">F2</span><b>Double-counted purchase</b><p>Fuzzy match across sources collapses duplicates to one.</p></div>
+        <div class="fm reveal" style="--i:2"><span class="fmid">F3</span><b>Cross-source conflict</b><p>₹450 vs ₹540 → anomaly → both quarantined with evidence.</p></div>
+        <div class="fm reveal" style="--i:3"><span class="fmid">F5</span><b>Bank CSV schema drift</b><p>Pandera contract + fuzzy header recovery; self-heals or quarantines.</p></div>
+        <div class="fm reveal" style="--i:4"><span class="fmid">F6</span><b>Model rate-limit / 5xx</b><p>Retry with backoff + jitter, then degrade — the run always completes.</p></div>
+        <div class="fm reveal" style="--i:5"><span class="fmid">F8</span><b>Dashboard connects late</b><p>Decoupled execution + per-run replay buffer; or it polls the result.</p></div>
+      </div>
+      <div class="roadmap reveal">
+        <b>What I'd build next, honestly:</b> confidence <em>calibration</em> against a larger labeled set ·
+        an active-learning loop where every human quarantine-resolution becomes a new eval row ·
+        a durable Postgres checkpointer + SQS so runs resume across restarts.
+      </div>
+    </section>
+
+    <!-- ── 6. Run it / Submit ─────────────────────────────────────────── -->
+    <section class="sec sec-alt" id="submit">
+      <div class="sec-head reveal">
+        <div class="kicker">SEE IT FOR YOURSELF</div>
+        <h2 class="sec-title center">Architecture is theory<br />until it ships.</h2>
+      </div>
+
+      <div class="evals-grid">
+        <div class="reveal">
+          <div class="codewin">
+            <div class="codewin-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">run-it.sh</span></div>
+            <pre class="type-target" data-typed="runit" data-speed="3"></pre>
+          </div>
+          <script type="application/json" class="code-data" data-name="runit">
+[
+  {"t":"$ ","c":"green"},{"t":"git clone <repo> && ","c":"dim"},{"t":"cd ","c":"kw"},{"t":"ledger-sentinel\n","c":"dim"},
+  {"t":"$ ","c":"green"},{"t":"docker compose up","c":"dim"},{"t":"           # full stack, one command\n","c":"com"},
+  {"t":"\n# no API key? mock mode is deterministic:\n","c":"com"},
+  {"t":"$ ","c":"green"},{"t":"cd ","c":"kw"},{"t":"backend && ","c":"dim"},{"t":"pytest -q","c":"dim"},{"t":"     # ","c":"com"},{"t":"16 passed\n","c":"green"}
+]
+          </script>
+        </div>
+
+        <div class="reveal" style="--i:1">
+          <div class="codewin">
+            <div class="codewin-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="name">submit.sh</span></div>
+            <pre class="type-target" data-typed="submit" data-speed="3"></pre>
+          </div>
+          <script type="application/json" class="code-data" data-name="submit">
+[
+  {"t":"$ ","c":"green"},{"t":"mail -s ","c":"dim"},{"t":"\"Builder Challenge — Mohammad Hussam — Track A+B\"","c":"str"},{"t":" \\\n","c":"dim"},
+  {"t":"       hiring@damcogroup.com\n","c":"fn"},
+  {"t":"  --attach ","c":"kw"},{"t":"video.link","c":"dim"},{"t":"    # YouTube (unlisted), 5–10 min\n","c":"com"},
+  {"t":"  --attach ","c":"kw"},{"t":"github.repo","c":"dim"},{"t":"   # public source + ARCHITECTURE.md\n","c":"com"},
+  {"t":"  --attach ","c":"kw"},{"t":"bio","c":"dim"},{"t":"           # 2–3 lines about what I build\n","c":"com"}
+]
+          </script>
+        </div>
+      </div>
+
+      <div class="final-cta reveal">
+        <a class="btn btn-red btn-lg" href="./app.html">Launch the Dashboard <span class="arr">↗</span></a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/mhussam-ai/ledger-sentinel/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">Read the Architecture</a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/mhussam-ai/ledger-sentinel" id="repo-link" target="_blank" rel="noopener">View the Code</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div>🛡️ <b>Ledger Sentinel</b> — the LLM proposes; deterministic code disposes.</div>
+    <div class="foot-sub">Built for the Build at Damco challenge · Engineer + Tech Lead · MIT licensed</div>
+  </footer>
+
+  <script src="./landing.js"></script>
+</body>
+</html>
