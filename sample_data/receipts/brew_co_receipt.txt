@@ -1,0 +1,6 @@
+BREW & CO
+Date: 2026-05-30
+Cappuccino          220.00
+Almond Croissant    230.00
+--------------------------
+TOTAL    ₹450.00

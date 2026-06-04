@@ -1,0 +1,4 @@
+SWIGGY
+UPI Ref: 401234567890
+Amount: ₹320.00
+Date: 2026-05-29

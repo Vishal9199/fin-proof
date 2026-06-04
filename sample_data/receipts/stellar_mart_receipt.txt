@@ -1,0 +1,6 @@
+STELLAR MART
+Date: 2026-05-28
+Groceries           1000.00
+Household Items     200.00
+--------------------------
+TOTAL    ₹1200.00
