@@ -1,0 +1,28 @@
+# ──────────────────────────────────────────────────────────────────────────
+# Ledger Sentinel — local one-command stack.
+#   docker compose up  →  API on :8000, UI on :5173
+# Mirrors the production topology (see ARCHITECTURE.md): stateless API +
+# worker pool. In prod the `api` image runs on ECS Fargate behind ALB and the
+# extraction workers scale horizontally off a queue.
+# ──────────────────────────────────────────────────────────────────────────
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend/data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  ui:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
