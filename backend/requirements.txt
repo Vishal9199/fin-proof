@@ -1,13 +1,17 @@
-# ── Core API ──────────────────────────────────────
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-python-multipart==0.0.18
-sse-starlette==2.1.3
-pydantic==2.10.4
-pydantic-settings==2.7.0
+# Pinned to the latest stable versions as of 2026-06-05, all verified together:
+# `pytest -q` (45 tests) + `python -m evals.run` (gated scorecard) pass on this set
+# under Python 3.13.
 
-# ── Agents / LLM ─────────────────────────
-langgraph==0.2.60
+# ── Core API ─────────────────────────────────────────────────
+fastapi==0.136.3
+uvicorn[standard]==0.49.0
+python-multipart==0.0.32
+sse-starlette==3.4.4
+pydantic==2.13.4
+pydantic-settings==2.14.1
+
+# ── Agents / LLM ──────────────────────────────────────────
+langgraph==1.2.4
 
 # Model providers are plug-and-play and imported lazily — the system runs
 # (mock mode, tests, and any one provider) even if the others aren't installed.
@@ -17,15 +21,16 @@ google-genai==2.8.0     # Google · Gemini  (the unified `from google import gen
 openai==2.41.0          # OpenAI · GPT
 
 # ── Structured data + schema-drift hardening (Bridgekeeper layer) ─────
-pandas==2.2.3
-pandera==0.22.1
+pandas==3.0.3
+pandera==0.31.1
 
-# ── Fuzzy reconciliation ─────────────────────────
-rapidfuzz==3.10.1
+# ── Fuzzy reconciliation ──────────────────────────────────
+rapidfuzz==3.14.5
 
 # ── Observability (optional, gated by env) ─────────────────────
-langfuse==2.57.0
+# Langfuse v4 is OpenTelemetry-backed; it pulls the OTel SDK transitively.
+langfuse==4.7.1
 
-# ── Tests ─────────────────────────────────
-pytest==8.3.4
-pytest-asyncio==0.25.0
+# ── Tests ───────────────────────────────────────────
+pytest==9.0.3
+pytest-asyncio==1.4.0

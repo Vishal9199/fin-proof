@@ -1,4 +1,7 @@
-FROM python:3.11-slim
+# 3.13 = the interpreter the full test suite + eval gates are verified on
+# (pandas 3.x / pandera / langgraph 1.x all green). 3.14-slim is also published
+# if you want to move up — rebuild and run `pytest` + `evals.run` to re-verify.
+FROM python:3.13-slim
 
 WORKDIR /app
 

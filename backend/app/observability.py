@@ -10,6 +10,8 @@ persist to Langfuse for historical dashboards and regression datasets.
 """
 from __future__ import annotations
 
+from functools import lru_cache
+
 from .config import get_settings
 from .events import bus
 from .providers.catalog import get_model_pricing
@@ -66,18 +68,28 @@ async def emit_trace(
     return trace
 
 
+@lru_cache(maxsize=1)
+def _langfuse_client():
+    """One cached client. Langfuse v4 is OpenTelemetry-backed, so constructing it
+    per span would spin up a tracer provider every call — we build it once."""
+    from langfuse import Langfuse  # type: ignore
+
+    s = get_settings()
+    return Langfuse(
+        public_key=s.langfuse_public_key,
+        secret_key=s.langfuse_secret_key,
+        host=s.langfuse_host,
+    )
+
+
 def _maybe_langfuse(run_id: str, trace: dict) -> None:
     settings = get_settings()
     if not settings.langfuse_enabled:
         return
     try:  # best-effort; never let telemetry break the run
-        from langfuse import Langfuse  # type: ignore
-
-        lf = Langfuse(
-            public_key=settings.langfuse_public_key,
-            secret_key=settings.langfuse_secret_key,
-            host=settings.langfuse_host,
+        # Langfuse v4 API: `create_event` replaces the removed v2 `trace()`.
+        _langfuse_client().create_event(
+            name=trace["span"], metadata={"run_id": run_id, **trace}
         )
-        lf.trace(name=trace["span"], metadata={"run_id": run_id, **trace})
     except Exception:  # noqa: BLE001 — telemetry is non-critical
         pass
