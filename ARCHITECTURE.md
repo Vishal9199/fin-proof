@@ -10,6 +10,31 @@
 > fenced off everywhere it is weak (arithmetic, final authority) by
 > deterministic guardrails. *The LLM proposes; deterministic code disposes.*
 
+**Companion docs:** [README](./README.md) (overview & quickstart) ·
+[API.md](./API.md) (REST + SSE reference) · [DEPLOY.md](./DEPLOY.md) (ship it free) ·
+[CONTRIBUTING.md](./CONTRIBUTING.md) (extend it) · [SECURITY.md](./SECURITY.md) ·
+[DEMO.md](./DEMO.md) (video script)
+
+## Contents
+
+1. [Problem framing & requirements](#1-problem-framing--requirements)
+2. [System overview](#2-system-overview)
+3. [The reconciliation state machine](#3-the-reconciliation-state-machine)
+4. [The extraction request lifecycle](#4-the-extraction-request-lifecycle-sequence)
+5. [The contract: canonical data model](#5-the-contract-canonical-data-model)
+6. [Scale considerations](#6-scale-considerations)
+7. [Latency trade-offs](#7-latency-trade-offs-the-decisions-worth-defending)
+   · [7.5 Pluggable providers & the control plane](#75-pluggable-model-providers--the-runtime-control-plane)
+8. [Failure modes & hardening (AgentOps)](#8-failure-modes--hardening-agentops--guardrails)
+9. [Security & data governance](#9-security--data-governance)
+10. [Technology choices & rejected alternatives](#10-technology-choices--and-the-alternative-i-rejected)
+11. [What I'd build next](#11-what-id-build-next-honest-roadmap)
+
+> **TL;DR for reviewers:** §2–§4 are the system shape and the safety state
+> machine; §6–§7.5 are the scale and the cost/provider trade-offs; **§8 is the
+> one that separates a script from a system** — 8 named failure modes, each with a
+> coded guardrail and a release-gated eval.
+
 ---
 
 ## 1. Problem framing & requirements

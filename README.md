@@ -23,9 +23,24 @@ short_description: Autonomous financial-document reconciliation engine
 statements, and UPI screenshots into one clean, trustworthy ledger — and refuses
 to post a number it can't prove.**
 
-[Architecture](./ARCHITECTURE.md) · [Quickstart](#-quickstart) · [How it works](#-how-it-works) · [Demo script](#-the-90-second-wow)
+_The LLM proposes; deterministic code disposes._
+
+[![CI](https://github.com/mhussam-ai/ledger-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/mhussam-ai/ledger-sentinel/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-45%20passing-brightgreen)
+![Eval gates](https://img.shields.io/badge/eval%20gates-PASS-brightgreen)
+![Python](https://img.shields.io/badge/python-3.13-blue)
+![Providers](https://img.shields.io/badge/models-Claude%20%C2%B7%20Gemini%20%C2%B7%20GPT%20%C2%B7%20Mock-7c3aed)
+![Frontend](https://img.shields.io/badge/frontend-no%20build%20step-ff69b4)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+[Architecture](./ARCHITECTURE.md) · [API reference](./API.md) · [Quickstart](#-quickstart) · [How it works](#-how-it-works) · [Deploy](./DEPLOY.md) · [Demo script](./DEMO.md) · [Contributing](./CONTRIBUTING.md)
 
 </div>
+
+> **▶ Live demo:** the app boots in deterministic **mock mode** — no API key, no
+> network, no billing — so it runs the moment it loads. **[Deploy your own free
+> live demo in ~5 minutes →](./DEPLOY.md)** (one-click Hugging Face Space.)
+<!-- After deploying, drop your Space URL and the walkthrough-video link here. -->
 
 ---
 
@@ -58,6 +73,30 @@ silently corrupting the ledger.
 | 🔌 **Pluggable model providers** | Choose **Anthropic, Google Gemini, OpenAI, or Mock** from the dashboard — paste a key, **fetch the models that key can actually use**, pick one from a dropdown, and the agent switches live with no restart. Default is always mock; nothing about the model stack is decided from the environment. One uniform provider contract; the pipeline never imports an SDK. |
 | 🔁 **Durable runs** | Execution is decoupled from the live stream and backed by a replay buffer — a late, dropped, or proxy-blocked dashboard still gets the full picture (or polls the result). |
 | 🛟 **Graceful degradation** | No API key? It runs in deterministic mock mode so the demo never dies on stage. Transient model errors retry with backoff, then degrade — the run always completes. |
+
+## 🎯 Built for both tracks
+
+This is **one submission for both the Engineer and the Tech Lead track** — the
+architecture and the shipped, tested implementation are the same artifact. The
+table maps what Damco said it looks for to where it lives in this repo.
+
+| What Damco evaluates | Where it is in this project |
+|---|---|
+| **AgentOps & observability** — monitor agent behavior, evaluate outputs, guard against bad ones | Every node emits a traced span (latency · tokens · USD · faithfulness), streamed live to the AgentOps panel and optionally to Langfuse. A **gated eval scorecard** turns a quality regression into a red build. → [ARCHITECTURE §8](./ARCHITECTURE.md#8-failure-modes--hardening-agentops--guardrails) |
+| **Cloud-native, not `localhost`** — a deployable system | One container serves API + dashboard; ships to a free **Hugging Face Space** in ~5 min, with the AWS production topology drawn out. → [DEPLOY.md](./DEPLOY.md) · [ARCHITECTURE §6](./ARCHITECTURE.md#6-scale-considerations) |
+| **Reliable AI ↔ structured-data integration** | A **Pandera schema-drift firewall** quarantines (and self-heals) malformed bank CSVs instead of corrupting the ledger; one canonical Pydantic contract is the only thing the engine sees. → [ARCHITECTURE §5](./ARCHITECTURE.md#5-the-contract-canonical-data-model) |
+| **"Think in systems, not tasks" · end-to-end ownership** | A LangGraph state machine where every transition is a *guard*, 8 named failure modes each with a coded guardrail, and a documented roadmap. → [ARCHITECTURE §3](./ARCHITECTURE.md#3-the-reconciliation-state-machine) |
+
+### 📊 At a glance
+
+| | |
+|---|---|
+| **Principle** | The LLM proposes; deterministic code disposes — no number is POSTED unless it can be proven |
+| **Stack** | FastAPI · LangGraph · Pandera · RapidFuzz · Pydantic · vanilla-JS dashboard (no build) |
+| **Models** | Anthropic Claude · Google Gemini · OpenAI GPT · deterministic Mock — switchable live from the dashboard |
+| **Tests / evals** | `45` passing · `5` gated eval metrics (safety gate = quarantine recall ≥ 1.0) |
+| **Run anywhere** | Boots to mock mode: no API key, no network, deterministic every time |
+| **Deploy** | One image, one origin → free Hugging Face Space (Render / Cloud Run ready) |
 
 ## 🏗️ How it works
 
@@ -126,11 +165,31 @@ python -m scripts.run_local    # offline terminal demo of the full pipeline
 5. Open the **AgentOps tab**: traces, per-step latency, token cost, and a faithfulness score for every extraction.
 6. (Optional) Mid-demo, drop in `bank_statement_drifted.csv` with a renamed column — the **schema-drift firewall** detects it, quarantines the rows, and self-heals the mapping live.
 
+## 📚 Documentation map
+
+| Doc | Audience | What's inside |
+|---|---|---|
+| **[README.md](./README.md)** (you are here) | Everyone | The problem, the thesis, what makes it a system, quickstart |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Tech Lead reviewers | Diagrams, the state machine, scale math, 8 failure modes + guardrails, evals, trade-offs, rejected alternatives |
+| **[API.md](./API.md)** | Integrators | Every REST endpoint, the SSE event protocol, the runtime control plane, `curl` examples |
+| **[DEPLOY.md](./DEPLOY.md)** | Operators | Ship a free live demo to a Hugging Face Space in ~5 min (Render / Cloud Run too) |
+| **[DEMO.md](./DEMO.md)** | The 5–10 min video | A beat-by-beat recording script + a live-Q&A trade-off cheat sheet |
+| **[CONTRIBUTING.md](./CONTRIBUTING.md)** | Engineers | Dev setup, the test/eval workflow, and **adding a model provider in one method** |
+| **[SECURITY.md](./SECURITY.md)** | Security reviewers | Secret handling, data governance, the human-in-the-loop gate, disclosure |
+
 ## 📁 Repository layout
 
 ```
 ledger-sentinel/
 ├── ARCHITECTURE.md        # system design, diagrams, scale, trade-offs, failure modes
+├── API.md                 # REST + SSE reference, control-plane flow, curl examples
+├── DEPLOY.md              # free live demo (Hugging Face Space) + AWS path
+├── DEMO.md                # the 5–10 min video script + Q&A cheat sheet
+├── CONTRIBUTING.md        # dev workflow + "add a provider in one method"
+├── SECURITY.md            # secret handling, data governance, disclosure
+├── Dockerfile             # single image: API + dashboard, one origin (the live demo)
+├── docker-compose.yml     # one-command local stack (same image as prod)
+├── .github/workflows/     # CI: pytest + gated eval scorecard on every push
 ├── backend/
 │   ├── app/
 │   │   ├── main.py        # FastAPI: decoupled run launch + SSE replay tail + /config control plane

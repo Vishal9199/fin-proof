@@ -1,0 +1,36 @@
+# Runs the unit/end-to-end suite AND the gated eval scorecard on every push and
+# PR. Because the eval gate (quarantine recall ≥ 1.0, etc.) runs here, a silent
+# quality regression becomes a red build, not a surprise in production.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: tests + eval gates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Run tests (unit + end-to-end + providers + eval-gate regression)
+        run: pytest -q
+
+      - name: Run the gated eval scorecard
+        run: python -m evals.run
