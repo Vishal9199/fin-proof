@@ -16,7 +16,7 @@ Two properties make this production-shaped rather than a toy:
 
 This is the in-memory primitive that, in production, is swapped for Redis Streams
 or an SQS/Kinesis consumer group (which give the same replay + at-least-once
-semantics across processes) without changing a single caller — ARCHITECTURE.md §6.
+semantics across processes) without changing a single caller — docs/ARCHITECTURE.md §6.
 """
 from __future__ import annotations
 

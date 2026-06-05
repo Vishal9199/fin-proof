@@ -8,7 +8,7 @@ decides whether it is trustworthy enough to advance. Two guards:
                         claim is treated as ungrounded and quarantined.
 
 Anything that fails is routed to QUARANTINE *with a reason*, never dropped and
-never silently posted (ARCHITECTURE.md §8).
+never silently posted (docs/ARCHITECTURE.md §8).
 """
 from __future__ import annotations
 

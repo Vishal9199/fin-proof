@@ -2,7 +2,7 @@
 
 Every source (receipt, bank CSV, UPI screenshot) is normalized to `Transaction`.
 The reconciliation engine sees *only* this model — which is exactly what lets us
-add a new source without touching the engine (ARCHITECTURE.md §5).
+add a new source without touching the engine (docs/ARCHITECTURE.md §5).
 
 Two deliberate correctness choices:
   * `amount` is `Decimal`, never `float` — money is exact.

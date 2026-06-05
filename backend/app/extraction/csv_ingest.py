@@ -10,7 +10,7 @@ two layers of contract in front of it:
      (amount > 0, parseable date, non-empty merchant). Rows that fail are
      quarantined per-row rather than corrupting the ledger.
 
-This is failure mode F5 in ARCHITECTURE.md.
+This is failure mode F5 in docs/ARCHITECTURE.md.
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 """Ledger Sentinel — autonomous reconciliation engine.
 
-See ARCHITECTURE.md for the system design. Package layout:
+See docs/ARCHITECTURE.md for the system design. Package layout:
     config.py        application settings (and mock-mode switch)
     schemas.py       canonical Pydantic contract (Transaction, events)
     events.py        in-process pub/sub for the live SSE dashboard

@@ -4,11 +4,11 @@
 #
 # Builds the EXACT image the Hugging Face Space runs (root Dockerfile), so local
 # and prod are identical: one FastAPI process serves the vanilla-JS dashboard and
-# the API from the same origin — no CORS, one URL. See DEPLOY.md.
+# the API from the same origin — no CORS, one URL. See docs/DEPLOY.md.
 #
 # (In a horizontally-scaled deployment the same stateless image runs behind a
 # load balancer; extraction fans out concurrently inside each replica. See
-# ARCHITECTURE.md.)
+# docs/ARCHITECTURE.md.)
 # ──────────────────────────────────────────────────────────────────────────
 services:
   app:

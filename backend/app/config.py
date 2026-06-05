@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # Transient-failure handling for live model calls (rate limits, 5xx, timeouts).
     # Retries with exponential backoff + jitter before degrading to the
-    # deterministic parser (ARCHITECTURE.md §8, F6).
+    # deterministic parser (docs/ARCHITECTURE.md §8, F6).
     ledger_max_retries: int = 3
     ledger_retry_base_delay: float = 0.5
 

@@ -5,7 +5,7 @@ Macro flow:  verify ──(≥2 verified?)──► reconcile ──► post
 
 Each node streams live events to the dashboard and routes transactions to either
 the POSTED ledger or the QUARANTINE lane. The graph gives us checkpointing and a
-replayable audit trail for free (ARCHITECTURE.md §3).
+replayable audit trail for free (docs/ARCHITECTURE.md §3).
 """
 from __future__ import annotations
 
