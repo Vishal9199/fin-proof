@@ -17,6 +17,7 @@ a single HTTPS port, and single-origin means no CORS and one link to share.
 Result: a public URL like `https://<your-hf-username>-ledger-sentinel.hf.space`.
 
 ### 1. Create the Space
+
 1. Sign in at <https://huggingface.co> (free; no card).
 2. **New → Space**.
 3. **Owner**: you · **Space name**: `ledger-sentinel`.
@@ -30,6 +31,7 @@ root [`Dockerfile`](../Dockerfile) — both are already in this repo, so there i
 nothing to edit.
 
 ### 2. Push this repo to the Space
+
 The Space is its own git repo. Add it as a second remote and push `main`.
 Authenticate with a **write** access token from
 <https://huggingface.co/settings/tokens> (use the token as the git password, or
@@ -47,6 +49,7 @@ build takes a few minutes (installs the pinned deps); afterwards it's live at th
 heavy is pushed.
 
 ### 3. (Optional) Gate the live model-config panel
+
 The dashboard lets a visitor paste their own provider key and pick a model. To
 require an admin token before any config write, add a Space **secret**:
 
@@ -58,6 +61,7 @@ backend writes keys but never reads them back — `GET /config` only ever return
 `keys_configured`, never the secret).
 
 ### Demo-day note — cold start
+
 A free Space **sleeps after idle** and the first request then takes ~30–60 s to
 wake. Before you present, open the URL once (or hit `…hf.space/health`) a minute
 ahead so it's warm. To avoid sleep entirely during a session, point a free
