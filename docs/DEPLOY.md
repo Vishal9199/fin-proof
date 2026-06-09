@@ -15,6 +15,7 @@ a single HTTPS port, and single-origin means no CORS and one link to share.
 ## Recommended: Hugging Face Spaces (Docker) — free, no credit card
 
 Result: a public URL like `https://<your-hf-username>-ledger-sentinel.hf.space`.
+(This repo's own instance is live at <https://mhussam-ai-ledger-sentinel.hf.space>.)
 
 ### 1. Create the Space
 

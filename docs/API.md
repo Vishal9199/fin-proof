@@ -12,7 +12,7 @@ host). Interactive OpenAPI docs are always available at **`/docs`**, and the raw
 schema at **`/openapi.json`**.
 
 - **Base URL (local):** `http://localhost:8000`
-- **Base URL (deployed):** your Space/site origin, e.g. `https://<user>-ledger-sentinel.hf.space`
+- **Base URL (deployed):** the site's own origin — this instance is live at `https://mhussam-ai-ledger-sentinel.hf.space`
 - **Content types:** `application/json` everywhere except `POST /reconcile` (`multipart/form-data`).
 
 ---
