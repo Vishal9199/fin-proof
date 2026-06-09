@@ -7,7 +7,7 @@
 # because we bind ${PORT:-7860} — HF routes to 7860 (declared as `app_port` in
 # README.md); platforms that inject $PORT are honored automatically.
 #
-# Verified on python:3.13-slim — the interpreter the 45 tests + eval gates pass
+# Verified on python:3.13-slim — the interpreter the 46 tests + eval gates pass
 # on (pandas 3.x / pandera / langgraph 1.x all green).
 # ──────────────────────────────────────────────────────────────────────────
 FROM python:3.13-slim

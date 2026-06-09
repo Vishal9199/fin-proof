@@ -130,7 +130,7 @@
       <div class="track" data-track="engineer">
         <div class="steps">
           <div class="step reveal"><div class="step-no">01</div><h3>Pick a complex problem</h3><p>Something that needs a system, not a script. Cross-source financial reconciliation with self-verification.</p></div>
-          <div class="step reveal" style="--i:1"><div class="step-no">02</div><h3>Build &amp; ship it</h3><p>FastAPI · LangGraph state machine · Pandera · RapidFuzz. <strong>16 tests green</strong>, deterministic mock mode, <strong>public repo</strong>.</p></div>
+          <div class="step reveal" style="--i:1"><div class="step-no">02</div><h3>Build &amp; ship it</h3><p>FastAPI · LangGraph state machine · Pandera · RapidFuzz. <strong>46 tests green</strong>, deterministic mock mode, <strong>public repo</strong>.</p></div>
           <div class="step reveal" style="--i:2"><div class="step-no">03</div><h3>Record a video</h3><p>A live walk-through of the running system catching a real discrepancy — scripted in <code>docs/DEMO.md</code>.</p></div>
         </div>
       </div>
@@ -202,8 +202,8 @@
           <script type="application/json" class="code-data" data-name="pytest">
 [
   {"t":"$ ","c":"green"},{"t":"pytest -q\n","c":"dim"},
-  {"t":"................                      ","c":"dim"},{"t":"[100%]\n","c":"num"},
-  {"t":"16 passed","c":"green"},{"t":" in 1.13s\n","c":"dim"}
+  {"t":"......................................","c":"dim"},{"t":"[100%]\n","c":"num"},
+  {"t":"46 passed","c":"green"},{"t":" in 5.66s\n","c":"dim"}
 ]
           </script>
         </div>
@@ -285,7 +285,7 @@
   {"t":"$ ","c":"green"},{"t":"git clone <repo> && ","c":"dim"},{"t":"cd ","c":"kw"},{"t":"ledger-sentinel\n","c":"dim"},
   {"t":"$ ","c":"green"},{"t":"docker compose up","c":"dim"},{"t":"           # full stack, one command\n","c":"com"},
   {"t":"\n# no API key? mock mode is deterministic:\n","c":"com"},
-  {"t":"$ ","c":"green"},{"t":"cd ","c":"kw"},{"t":"backend && ","c":"dim"},{"t":"pytest -q","c":"dim"},{"t":"     # ","c":"com"},{"t":"16 passed\n","c":"green"}
+  {"t":"$ ","c":"green"},{"t":"cd ","c":"kw"},{"t":"backend && ","c":"dim"},{"t":"pytest -q","c":"dim"},{"t":"     # ","c":"com"},{"t":"46 passed\n","c":"green"}
 ]
           </script>
         </div>

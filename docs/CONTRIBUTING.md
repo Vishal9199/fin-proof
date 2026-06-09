@@ -29,7 +29,7 @@ the tests, and the evals all run offline and deterministically.
 
 ```bash
 cd backend
-pytest -q                    # 45 tests: unit + end-to-end + providers + eval gates
+pytest -q                    # 46 tests: unit + end-to-end + providers + eval gates
 python -m evals.run          # the gated eval scorecard (prints PASS/FAIL + diagnostics)
 python -m scripts.run_local  # offline terminal demo of a full reconciliation run
 ```

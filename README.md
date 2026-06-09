@@ -158,7 +158,7 @@ uvicorn app.main:app --port 8000
 ```bash
 # Prove correctness without a server — deterministic, no API key:
 cd backend
-pytest -q                      # unit + end-to-end + provider + eval gates (45 tests)
+pytest -q                      # unit + end-to-end + provider + eval gates (46 tests)
 python -m evals.run            # the gated eval scorecard
 python -m scripts.run_local    # offline terminal demo of the full pipeline
 ```
