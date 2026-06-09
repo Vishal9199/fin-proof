@@ -18,6 +18,7 @@
       <span class="logo">🛡️</span><span>Ledger Sentinel</span>
     </a>
     <div class="nav-links">
+      <a href="#demo">Demo</a>
       <a href="#problem">Problem</a>
       <a href="#tracks">Tracks</a>
       <a href="#architecture">Architecture</a>
@@ -47,6 +48,7 @@
       </a>
       <div class="hero-cta">
         <a class="btn btn-red" href="./app.html">Launch the Dashboard <span class="arr">↗</span></a>
+        <a class="btn btn-ghost" href="#demo">▶ Watch the 90s demo</a>
         <a class="btn btn-ghost" href="https://github.com/mhussam-ai/ledger-sentinel/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">Read the Architecture</a>
       </div>
 
@@ -58,10 +60,30 @@
         <div class="ad-verdict">⚠ ANOMALY · amounts disagree → <b>quarantined</b>, not posted</div>
       </div>
     </div>
-    <a class="scrollcue" href="#problem" aria-label="Scroll down">↓</a>
+    <a class="scrollcue" href="#demo" aria-label="Scroll down">↓</a>
   </header>
 
   <main>
+    <!-- ── 0. Demo video ──────────────────────────────────────────────── -->
+    <section class="sec" id="demo">
+      <style>
+        #demo .demo-frame { max-width: 1040px; margin: 10px auto 0; border: 1px solid var(--border);
+          border-radius: 18px; overflow: hidden; box-shadow: 0 40px 100px -50px rgba(0,0,0,.92); background: #000; }
+        #demo .demo-video { display: block; width: 100%; height: auto; }
+      </style>
+      <div class="sec-head reveal">
+        <div class="kicker">THE 90-SECOND TOUR</div>
+        <h2 class="sec-title center">See the whole system<br />in <span class="grn">90 seconds.</span></h2>
+        <p class="lead center">A narrated walkthrough — the trust problem, the guarded pipeline, the live
+          anomaly catch, schema self-healing, and the evals that gate every release.</p>
+      </div>
+      <div class="demo-frame reveal">
+        <video class="demo-video" controls preload="metadata" poster="./demo-poster.jpg" playsinline>
+          <source src="./ledger-sentinel-demo.mp4" type="video/mp4" />
+        </video>
+      </div>
+    </section>
+
     <!-- ── 1. The Problem ─────────────────────────────────────────────── -->
     <section class="sec" id="problem">
       <div class="sec-grid">
