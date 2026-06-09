@@ -12,11 +12,11 @@ Two deliberate correctness choices:
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 SourceType = Literal["receipt", "bank_csv", "upi_screenshot"]
 
@@ -47,6 +47,17 @@ class Transaction(BaseModel):
     state: TxnState = TxnState.EXTRACTED
     evidence: list[str] = Field(default_factory=list)
     quarantine_reason: Optional[str] = None
+
+    @field_validator("amount")
+    @classmethod
+    def _money_2dp(cls, v: Decimal) -> Decimal:
+        """Normalize money to 2 decimal places (paise) so amounts render
+        consistently everywhere — a CSV's `540.0` and a receipt's `450.00` both
+        become `x.xx`, in events, the RunResult, and link/anomaly detail strings.
+        The values are already ≤2dp from parsing, so this only fixes display
+        precision; it never changes a value (and Decimal equality is unaffected).
+        """
+        return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     @property
     def min_confidence(self) -> float:
