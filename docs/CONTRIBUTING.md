@@ -29,7 +29,7 @@ the tests, and the evals all run offline and deterministically.
 
 ```bash
 cd backend
-pytest -q                    # 46 tests: unit + end-to-end + providers + eval gates
+pytest -q                    # 80 tests: unit + end-to-end + providers + ingestion + eval gates
 python -m evals.run          # the gated eval scorecard (prints PASS/FAIL + diagnostics)
 python -m scripts.run_local  # offline terminal demo of a full reconciliation run
 ```
@@ -111,6 +111,15 @@ class AcmeProvider(LLMProvider):
 That's the entire vendor-specific surface. You do **not** write extraction,
 self-consistency, retry, confidence, or quarantine logic — `base.py` already
 applies all of it to your `complete()`.
+
+**Optional — real-document support.** If the vendor can read images/PDFs, also
+override `complete_multimodal()` (prompt + `Attachment` list → `LLMResponse`;
+base64 the bytes into whatever envelope the vendor wants) and set
+`supports_attachments = True`. The shared visual/statement extraction in
+`base.py` — two-read self-consistency, non-financial classification (F10), the
+per-row statement re-read (F11) — then applies to your vendor unchanged. Without
+it, image and scanned-PDF uploads are quarantined with a clear reason when your
+provider is selected (F9); text documents still work fully.
 
 ### Step 2 — register it in the factory
 

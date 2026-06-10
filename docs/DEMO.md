@@ -35,7 +35,7 @@ Gemini / GPT** once you configure a provider in the dashboard ⚙️).
 ```bash
 cd backend && python -m scripts.run_local          # 3 posted ₹1720, 3 quarantined, 1 anomaly
 python -m scripts.run_local --drift                # + 2 self-healed drifted rows
-pytest -q                                          # 46 passed
+pytest -q                                          # 80 passed
 python -m evals.run                                # gated eval scorecard → PASS
 ```
 

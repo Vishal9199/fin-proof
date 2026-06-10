@@ -11,12 +11,19 @@ from __future__ import annotations
 from collections import OrderedDict
 
 from .anthropic_provider import AnthropicProvider
-from .base import LLMProvider, LLMResponse, TransientProviderError, call_with_retries
+from .base import (
+    Attachment,
+    LLMProvider,
+    LLMResponse,
+    ProviderCapabilityError,
+    TransientProviderError,
+    call_with_retries,
+)
 from .catalog import PROVIDER_IDS, PROVIDER_INFO, ProviderInfo, get_model_pricing
 from .google_provider import GoogleProvider
 from .mock_provider import MockProvider
 from .openai_provider import OpenAIProvider
-from .parsing import parse_receipt_text
+from .parsing import parse_receipt_text, parse_statement_text
 
 _BUILDERS: dict[str, type[LLMProvider]] = {
     "anthropic": AnthropicProvider,
@@ -59,7 +66,9 @@ def reset_provider_cache() -> None:
 
 
 __all__ = [
-    "LLMProvider", "LLMResponse", "TransientProviderError", "call_with_retries",
+    "Attachment", "LLMProvider", "LLMResponse", "ProviderCapabilityError",
+    "TransientProviderError", "call_with_retries",
     "PROVIDER_INFO", "PROVIDER_IDS", "ProviderInfo", "get_model_pricing",
-    "get_provider", "build_provider", "reset_provider_cache", "parse_receipt_text",
+    "get_provider", "build_provider", "reset_provider_cache",
+    "parse_receipt_text", "parse_statement_text",
 ]

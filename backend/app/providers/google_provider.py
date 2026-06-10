@@ -31,6 +31,7 @@ _GOOGLE_SKIP = (
 
 class GoogleProvider(LLMProvider):
     id = "google"
+    supports_attachments = True
 
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
@@ -43,7 +44,7 @@ class GoogleProvider(LLMProvider):
             self._client = genai.Client(api_key=self._api_key)
         return self._client
 
-    async def complete(self, *, model, prompt, system=None, max_tokens=512) -> LLMResponse:
+    async def _generate(self, *, model, contents, system, max_tokens) -> LLMResponse:
         from google.genai import types  # lazy
 
         client = self._get_client()
@@ -59,7 +60,7 @@ class GoogleProvider(LLMProvider):
             cfg_kwargs["system_instruction"] = system
         resp = await client.aio.models.generate_content(
             model=model,
-            contents=prompt,
+            contents=contents,
             config=types.GenerateContentConfig(**cfg_kwargs),
         )
         try:
@@ -75,6 +76,25 @@ class GoogleProvider(LLMProvider):
         tout = int(getattr(um, "candidates_token_count", 0) or 0)
         tout += int(getattr(um, "thoughts_token_count", 0) or 0)
         return LLMResponse(text=text, input_tokens=tin, output_tokens=tout, model=model)
+
+    async def complete(self, *, model, prompt, system=None, max_tokens=512) -> LLMResponse:
+        return await self._generate(
+            model=model, contents=prompt, system=system, max_tokens=max_tokens
+        )
+
+    async def complete_multimodal(
+        self, *, model, prompt, attachments, system=None, max_tokens=1024
+    ) -> LLMResponse:
+        from google.genai import types  # lazy
+
+        # Gemini takes raw bytes inline — images and PDFs use the same Part shape.
+        parts = [
+            types.Part.from_bytes(data=att.data, mime_type=att.media_type)
+            for att in attachments
+        ]
+        return await self._generate(
+            model=model, contents=parts + [prompt], system=system, max_tokens=max_tokens
+        )
 
     async def list_models(self):
         import inspect

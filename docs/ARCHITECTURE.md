@@ -80,9 +80,11 @@ flowchart TB
     end
 
     subgraph Workers["🤖 Extraction worker pool (parallel fan-out)"]
-        ROUTER -->|image / pdf| VIS[Vision worker · provider]
+        ROUTER -->|image / text| VIS[Vision worker · provider]
+        ROUTER -->|pdf| PDFW[PDF worker · text-layer probe → statement rows or native vision]
         ROUTER -->|csv| CSVW[CSV worker · Pandera contract]
         VIS --> VERIFY[Self-verify guardrail]
+        PDFW --> VERIFY
         CSVW --> VERIFY
     end
 
@@ -360,6 +362,11 @@ failure we name the guardrail and where it lives in code.
 | F6 | **Model API failure / rate limit** (any provider) | Retry w/ exponential backoff + jitter (`LEDGER_MAX_RETRIES`); transient 429/5xx/timeout are retried, then the doc **degrades to the deterministic parser** — if that read is itself low-confidence, the verify gate quarantines it. The run always completes. The retry logic lives once in the provider base class, so it is identical for Anthropic/Google/OpenAI | `providers/base.py` |
 | F7 | **No / wrong API key, or unknown provider** | Selecting a provider with no key **collapses to deterministic mock mode** (`effective_provider`) rather than erroring; the system — and the live demo — never hard-fails. A bad key can be caught up-front with `POST /config/test` | `runtime.py` |
 | F8 | **Dashboard connects late, SSE drops, or is blocked by a proxy** | Run execution is **decoupled from streaming**: it launches on `POST /reconcile` and completes regardless of who's watching. The event bus keeps a **per-run replay buffer**, so a late/reconnecting subscriber receives full history then tails live; if SSE can't connect at all, the client **falls back to polling** `/runs/{id}`. A failed run emits `run.failed` rather than hanging | `events.py` + `main.py` + `frontend/app.js` |
+| F9 | **Pixels with no reader** (scanned PDF / photo in mock mode, or the vision call fails) | There is **no deterministic pixel parser**, so the document is `QUARANTINE`d with an explicit reason ("needs a vision-capable provider") — a number is **never fabricated**. A failed live vision call surfaces as `<provider>→quarantine` in the trace, not as a silent mock run | `extraction/vision.py` + `extraction/pdf_ingest.py` |
+| F10 | **Non-financial document uploaded** (e.g. a random app screenshot) | The visual extraction also *classifies*: `kind="other"` zeroes confidence → `QUARANTINE` ("classified as non-financial"), with the model's reading kept as evidence | `providers/base.py` + `extraction/vision.py` |
+| F11 | **Statement row drift** (the model miscounts or misreads rows in a many-page statement) | Two full reads: rows, then an independent amount-only column re-read. Deterministic code compares them **element-wise** — a disagreeing row collapses to 0.55 and quarantines *individually*; a count mismatch collapses every row. The model never grades itself | `providers/base.py · extract_statement` |
+| F12 | **PII leaves the process** (account numbers, PAN, IFSC, phones, emails in outbound prompts) | Deterministic regex redaction (`privacy.py`) masks identifiers (keeping the last 4 chars) before any document **text** reaches a live provider; amounts survive by construction. Mock mode never sends bytes anywhere. Pixels can't be masked — disclosed in SECURITY.md | `privacy.py` + workers |
+| F13 | **Hostile/oversized uploads** (lying extensions, unknown binaries, huge files) | Routing trusts **magic bytes, never filenames**; unknown binaries quarantine with a reason; per-file size and per-run count caps return structured 4xx | `extraction/sniff.py` + `main.py` |
 
 ### The validation state machine, precisely
 

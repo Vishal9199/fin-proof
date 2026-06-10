@@ -15,13 +15,22 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 _AMOUNT_RE = re.compile(r"₹?\s*([\d,]+\.\d{2})")
 _DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 _TOTAL_RE = re.compile(r"(?:total|grand total|amount paid)\s*:?\s*₹?\s*([\d,]+\.\d{2})", re.I)
 _LINE_ITEM_RE = re.compile(r"\S.*?\s{2,}₹?\s*([\d,]+\.\d{2})\s*$")
+
+# A statement row: a leading date, a description, and a trailing money column.
+_STMT_ROW_RE = re.compile(
+    r"^\s*(?P<date>\d{4}-\d{2}-\d{2}|\d{2}[/-]\d{2}[/-]\d{4}|\d{2}\s[A-Za-z]{3}\s\d{4})"
+    r"\s+(?P<desc>.+?)\s{2,}₹?\s*(?P<amount>[\d,]+\.\d{2})\s*(?:CR|DR)?\s*$",
+    re.I,
+)
+
+_DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%d %b %Y")
 
 
 def to_decimal(raw) -> Decimal:
@@ -38,6 +47,57 @@ def json_object(raw: str) -> dict:
     if start == -1 or end == -1 or end < start:
         raise ValueError("no JSON object found in model response")
     return json.loads(raw[start : end + 1])
+
+
+def json_array(raw: str) -> list:
+    """Extract a JSON array from a model reply, tolerating an object wrapper
+    (some models return `{"rows": [...]}` despite being asked for a bare array)."""
+    start, end = raw.find("["), raw.rfind("]")
+    if start != -1 and end > start:
+        try:
+            value = json.loads(raw[start : end + 1])
+            if isinstance(value, list):
+                return value
+        except json.JSONDecodeError:
+            pass
+    obj = json_object(raw)
+    for value in obj.values():
+        if isinstance(value, list):
+            return value
+    raise ValueError("no JSON array found in model response")
+
+
+def parse_date_any(raw: str) -> date | None:
+    """Parse the date formats Indian bank documents actually use; None if unparseable
+    (an unparseable date must quarantine the row, never silently become 'today')."""
+    raw = str(raw).strip()
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def parse_statement_text(text: str) -> list[dict]:
+    """Deterministic statement-row extraction from a text-layer statement.
+
+    Powers mock mode and the degradation path for statement PDFs, mirroring what
+    `parse_receipt_text` does for receipts. Each row: {date, description, amount}.
+    """
+    rows: list[dict] = []
+    for line in text.splitlines():
+        m = _STMT_ROW_RE.match(line.rstrip())
+        if not m:
+            continue
+        rows.append(
+            {
+                "date": m.group("date"),
+                "description": m.group("desc").strip(),
+                "amount": to_decimal(m.group("amount")),
+            }
+        )
+    return rows
 
 
 def parse_receipt_text(text: str) -> dict:

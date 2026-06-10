@@ -31,6 +31,18 @@ in [ARCHITECTURE.md §9](./ARCHITECTURE.md#9-security--data-governance).
 
 - **Minimal egress.** The only outbound call is to the selected model provider,
   and only the document content needed for extraction is sent.
+- **PII redaction before egress (F12).** Document *text* is scrubbed
+  deterministically before it becomes a live-provider payload: account/card
+  numbers (any ≥9-digit run), PAN, IFSC, Aadhaar-style groups, voter-ID EPICs,
+  phone numbers, and emails are masked keeping only the last 4 characters.
+  Amounts survive by construction. Controlled by `LEDGER_REDACT_PII`
+  (default on).
+- **Pixels cannot be masked — know what you're sending.** Images and scanned
+  PDFs are sent to the configured provider **as-is** when a live provider is
+  selected; redaction only applies to text. In **mock mode nothing ever leaves
+  the process** — pixel-based documents are quarantined locally with a reason
+  instead of being uploaded anywhere. Treat enabling a live provider as consent
+  to send the uploaded documents to that vendor.
 - **Traces carry derived fields, not raw documents.** Trace/AgentOps payloads hold
   computed values and evidence references (crop refs / source rows), not raw image
   bytes in cleartext.

@@ -1,5 +1,5 @@
-# Pinned to the latest stable versions as of 2026-06-05, all verified together:
-# `pytest -q` (46 tests) + `python -m evals.run` (gated scorecard) pass on this set
+# Pinned to the latest stable versions as of 2026-06-11, all verified together:
+# `pytest -q` (80 tests) + `python -m evals.run` (gated scorecard) pass on this set
 # under Python 3.13.
 
 # ── Core API ─────────────────────────────────────────────────
@@ -23,6 +23,11 @@ openai==2.41.0          # OpenAI · GPT
 # ── Structured data + schema-drift hardening (Bridgekeeper layer) ─────
 pandas==3.0.3
 pandera==0.31.1
+
+# ── Real-document ingestion ─────────────────────────────────
+# Text-layer probe + extraction for PDF uploads (pure-Python, BSD). Scanned
+# PDFs/images go to the configured provider as native vision attachments.
+pypdf==6.10.2
 
 # ── Fuzzy reconciliation ──────────────────────────────────
 rapidfuzz==3.14.5

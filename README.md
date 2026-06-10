@@ -28,7 +28,7 @@ _The LLM proposes; deterministic code disposes._
 [![Live Demo](https://img.shields.io/badge/live%20demo-online-brightgreen?logo=huggingface&logoColor=white)](https://huggingface.co/spaces/mhussam-ai/ledger-sentinel)
 [![Demo video](https://img.shields.io/badge/demo-90s%20walkthrough-ff4438)](https://mhussam-ai-ledger-sentinel.hf.space/ledger-sentinel-demo.mp4)
 [![CI](https://github.com/mhussam-ai/ledger-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/mhussam-ai/ledger-sentinel/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-46%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-80%20passing-brightgreen)
 ![Eval gates](https://img.shields.io/badge/eval%20gates-PASS-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.13-blue)
 ![Providers](https://img.shields.io/badge/models-Claude%20%C2%B7%20Gemini%20%C2%B7%20GPT%20%C2%B7%20Mock-7c3aed)
@@ -75,7 +75,9 @@ silently corrupting the ledger.
 | Capability | What it means |
 |---|---|
 | 🚀 **Parallel fan-out** | Every document gets its own extraction worker, run concurrently. 17 documents process in roughly the time of the slowest one. |
-| 🔍 **Self-verification** | Each amount is extracted twice and must agree; low-confidence fields are routed to a quarantine lane, never auto-posted. |
+| 📸 **Real documents, not stand-ins** | JPEG/PNG photos and screenshots ride native **vision** content blocks; PDFs get a text-layer probe — born-digital statements expand into rows deterministically, scanned ones go to the model as native PDF attachments. Routing is by **magic bytes**, never the filename; a non-financial image is classified and quarantined, never turned into a number. |
+| 🔍 **Self-verification** | Each amount is extracted twice and must agree; low-confidence fields are routed to a quarantine lane, never auto-posted. Statements get a per-row **element-wise** amount re-read. |
+| 🔏 **PII redaction at the egress boundary** | Account numbers, PAN, IFSC, phones, and emails are masked deterministically before any document text reaches a live provider; mock mode never sends bytes anywhere. |
 | 🔗 **Cross-source reconciliation** | A matching agent links the bank line, the UPI screenshot, and the paper receipt for the *same* purchase, collapsing duplicates. |
 | 🧩 **Schema-drift firewall** | Bank CSVs change columns without warning. A Pandera contract detects drift and quarantines bad rows instead of crashing. |
 | 📊 **AgentOps built in** | Every reasoning step is traced, scored (faithfulness / confidence), timed, and costed — visible live on the dashboard. |
@@ -104,16 +106,17 @@ table maps what Damco said it looks for to where it lives in this repo.
 | **Principle** | The LLM proposes; deterministic code disposes — no number is POSTED unless it can be proven |
 | **Stack** | FastAPI · LangGraph · Pandera · RapidFuzz · Pydantic · vanilla-JS dashboard (no build) |
 | **Models** | Anthropic Claude · Google Gemini · OpenAI GPT · deterministic Mock — switchable live from the dashboard |
-| **Tests / evals** | `46` passing · `5` gated eval metrics (safety gate = quarantine recall ≥ 1.0) |
+| **Tests / evals** | `80` passing · `5` gated eval metrics (safety gate = quarantine recall ≥ 1.0) |
 | **Run anywhere** | Boots to mock mode: no API key, no network, deterministic every time |
 | **Deploy** | One image, one origin → free Hugging Face Space (Render / Cloud Run ready) |
 
 ## 🏗️ How it works
 
 ```
-   Upload pile ──► FAN-OUT (1 worker / doc, parallel)
-                       │  receipts/PDF → vision (configured provider)
-                       │  bank CSV     → Pandera schema contract
+   Upload pile ──► FAN-OUT (1 worker / doc, parallel; routed by magic bytes)
+                       │  photos/screens → vision blocks (configured provider)
+                       │  PDFs           → text-layer probe → rows · or native PDF vision
+                       │  bank CSV       → Pandera schema contract
                        ▼
                   SELF-VERIFY  ──(low confidence)──► QUARANTINE ──► human review
                        │
@@ -161,7 +164,7 @@ uvicorn app.main:app --port 8000
 ```bash
 # Prove correctness without a server — deterministic, no API key:
 cd backend
-pytest -q                      # unit + end-to-end + provider + eval gates (46 tests)
+pytest -q                      # unit + end-to-end + provider + eval gates (80 tests)
 python -m evals.run            # the gated eval scorecard
 python -m scripts.run_local    # offline terminal demo of the full pipeline
 ```
@@ -201,7 +204,8 @@ ledger-sentinel/
 │   ├── CONTRIBUTING.md        # dev workflow + "add a provider in one method"
 │   ├── CONFIGURATION.md       # every setting: ops env vars vs dashboard model config
 │   ├── TROUBLESHOOTING.md     # symptom → cause → fix for the real issues
-│   └── SECURITY.md            # secret handling, data governance, disclosure
+│   ├── SECURITY.md            # secret handling, data governance, disclosure
+│   └── specs/                 # design specs (e.g. real-document ingestion)
 ├── Dockerfile             # single image: API + dashboard, one origin (the live demo)
 ├── docker-compose.yml     # one-command local stack (same image as prod)
 ├── .github/workflows/     # CI: pytest + gated eval scorecard on every push
@@ -211,8 +215,9 @@ ledger-sentinel/
 │   │   ├── events.py      # event bus with per-run replay buffer (durable runs)
 │   │   ├── schemas.py     # Pydantic canonical models (the contract)
 │   │   ├── runtime.py     # control plane: live provider/key/model selection (plug-and-play)
-│   │   ├── providers/     # uniform LLMProvider contract → Anthropic · Google · OpenAI · Mock
-│   │   ├── extraction/    # vision (any provider) · CSV/Pandera drift · self-verify · retry/backoff
+│   │   ├── privacy.py     # PII redaction at the egress boundary (text → live provider)
+│   │   ├── providers/     # uniform LLMProvider contract (text + vision/PDF attachments)
+│   │   ├── extraction/    # magic-byte router · vision/image · PDF lane · CSV/Pandera drift
 │   │   └── graph/         # LangGraph reconciliation state machine + fuzzy matching
 │   ├── evals/             # golden dataset · metrics · gated scorecard (python -m evals.run)
 │   └── tests/             # unit + end-to-end + eval-gate regression tests

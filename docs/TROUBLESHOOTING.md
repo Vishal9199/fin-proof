@@ -95,6 +95,36 @@ unset the token for an open local demo. See [CONFIGURATION.md](./CONFIGURATION.m
 
 ## Dashboard & uploads
 
+### My photo / screenshot / scanned PDF came back QUARANTINED in mock mode
+**Cause:** working as designed (F9). Mock mode is fully offline and deterministic —
+it reads **no pixels** and refuses to invent a number for an image or a scanned PDF
+(one with no text layer). The quarantine reason on the card says exactly this.
+
+**Fix:** open ⚙️, configure a vision-capable provider (Anthropic / Google / OpenAI)
+and re-run: images ride native vision blocks and scanned PDFs are sent to the model
+as native PDF attachments. Born-digital PDFs and text receipts extract fine in mock
+mode without any key.
+
+### A statement PDF was quarantined with "over the N-page cap"
+**Cause:** the PDF exceeds `LEDGER_MAX_PDF_PAGES` (default 40). It is refused with a
+reason rather than silently truncated — a partial statement would corrupt the ledger.
+
+**Fix:** raise `LEDGER_MAX_PDF_PAGES` in `.env` (mind provider input limits and cost:
+the whole document is read twice for the per-row self-consistency re-read), or split
+the PDF.
+
+### A random image posted nothing and says "classified as non-financial"
+**Cause:** working as designed (F10) — the vision pass classifies the document first;
+anything that isn't a receipt / UPI payment / statement is quarantined instead of
+being hallucinated into a transaction. The model's reading is kept in the evidence
+trail for review.
+
+### Upload rejected with 413 / "Too many documents"
+**Cause:** the upload guards (F13): per-file size cap `LEDGER_MAX_UPLOAD_MB`
+(default 15 MB) and per-run count cap `LEDGER_MAX_FILES` (default 40).
+
+**Fix:** raise the env vars, or trim the pile. Empty files are rejected with a 400.
+
 ### "Could not reach the API at …" after dropping a folder
 **Cause (historic):** a dropped *folder* used to arrive as one unreadable directory
 entry, which failed the upload. This is fixed — the dropzone now recurses into folders.

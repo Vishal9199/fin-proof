@@ -183,7 +183,7 @@ renamed to `Txn Date, Narration, Withdrawal`). Point at the amber drift banner.
 > drift, the model rate-limits — **each has a named guardrail, F1 through F8**, and the
 > rule is always *when unsure, quarantine rather than corrupt*. And because it touches
 > money, the metric I gate on isn't accuracy — it's **quarantine recall**, locked at
-> **1.0** as a hard CI gate across **46 tests**. Regress what the system catches and the
+> **1.0** as a hard CI gate across **80 tests**. Regress what the system catches and the
 > build goes red."
 
 > "**What I'd improve with more time**: confidence *calibration* against a bigger

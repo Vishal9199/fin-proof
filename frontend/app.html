@@ -24,7 +24,8 @@
       <button type="button" id="mode-badge" class="badge badge-muted" title="Configure the model provider">connecting…</button>
       <button type="button" id="settings-btn" class="icon-btn" title="Model provider settings">⚙️</button>
       <label class="upload-btn">
-        <input type="file" id="file-input" multiple hidden />
+        <input type="file" id="file-input" multiple hidden
+               accept=".csv,.txt,.pdf,image/jpeg,image/png,image/webp,image/gif" />
         Upload pile
       </label>
       <button id="run-btn" class="run-btn" disabled>Reconcile</button>
@@ -82,7 +83,7 @@
   <div id="error-banner" class="error-banner hidden"></div>
 
   <div id="dropzone" class="dropzone">
-    <p>Drag your <strong>receipts, bank CSV, and UPI screenshots</strong> here — or click “Upload pile”.</p>
+    <p>Drag your <strong>receipts, bank statements (CSV / PDF), and UPI screenshots (photos, scans, text)</strong> here — or click “Upload pile”.</p>
     <p class="hint">No API key? Runs in deterministic mock mode. Try the files in <code>sample_data/</code>.</p>
     <ul id="file-list" class="file-list"></ul>
   </div>

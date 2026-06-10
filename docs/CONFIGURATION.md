@@ -30,6 +30,10 @@ environment. Set them in `.env` (git-ignored) or your platform's env settings.
 | `LEDGER_MAX_CONCURRENCY` | `8` | Max extraction workers fanned out concurrently (a semaphore that protects the model rate limit). |
 | `LEDGER_MAX_RETRIES` | `3` | Attempts for a transient model failure (429/5xx/timeout) before degrading to the deterministic parser (F6). |
 | `LEDGER_RETRY_BASE_DELAY` | `0.5` | Base seconds for exponential backoff + jitter between retries. |
+| `LEDGER_MAX_UPLOAD_MB` | `15` | Per-file upload size cap; an oversized file is rejected with a structured `413` naming the file (F13). |
+| `LEDGER_MAX_FILES` | `40` | Per-run document count cap (`400` when exceeded). |
+| `LEDGER_MAX_PDF_PAGES` | `40` | Page ceiling for the PDF lane. An over-cap PDF is **quarantined with a reason**, never silently truncated — a partial statement is a corrupt ledger. |
+| `LEDGER_REDACT_PII` | `true` | Mask account numbers, PAN, IFSC, Aadhaar-style groups, phones, and emails (keeping the last 4 chars) before document **text** is sent to a live provider (F12). Mock mode never sends bytes anywhere; pixels can't be masked (see [SECURITY.md](./SECURITY.md)). |
 | `LANGFUSE_PUBLIC_KEY` | `""` | Enables Langfuse trace persistence **only if** both keys are set; otherwise traces stay in-process and still render on the AgentOps tab. |
 | `LANGFUSE_SECRET_KEY` | `""` | — |
 | `LANGFUSE_HOST` | `https://cloud.langfuse.com` | Langfuse endpoint (self-hosted or cloud). |

@@ -32,6 +32,7 @@ _NON_CHAT = (
 
 class OpenAIProvider(LLMProvider):
     id = "openai"
+    supports_attachments = True
 
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
@@ -44,13 +45,8 @@ class OpenAIProvider(LLMProvider):
             self._client = AsyncOpenAI(api_key=self._api_key)
         return self._client
 
-    async def complete(self, *, model, prompt, system=None, max_tokens=512) -> LLMResponse:
+    async def _create(self, *, model, messages, max_tokens) -> LLMResponse:
         client = self._get_client()
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-
         try:
             resp = await client.chat.completions.create(
                 model=model, messages=messages, max_completion_tokens=max_tokens
@@ -68,6 +64,37 @@ class OpenAIProvider(LLMProvider):
         tin = int(getattr(usage, "prompt_tokens", 0) or 0)
         tout = int(getattr(usage, "completion_tokens", 0) or 0)
         return LLMResponse(text=text or "", input_tokens=tin, output_tokens=tout, model=model)
+
+    async def complete(self, *, model, prompt, system=None, max_tokens=512) -> LLMResponse:
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        return await self._create(model=model, messages=messages, max_tokens=max_tokens)
+
+    async def complete_multimodal(
+        self, *, model, prompt, attachments, system=None, max_tokens=1024
+    ) -> LLMResponse:
+        import base64
+
+        parts: list[dict] = []
+        for att in attachments:
+            data_uri = f"data:{att.media_type};base64,{base64.b64encode(att.data).decode('ascii')}"
+            if att.media_type == "application/pdf":
+                # PDF inputs ride the `file` content part (base64 data URI).
+                parts.append(
+                    {"type": "file",
+                     "file": {"filename": att.name or "document.pdf", "file_data": data_uri}}
+                )
+            else:
+                parts.append({"type": "image_url", "image_url": {"url": data_uri}})
+        parts.append({"type": "text", "text": prompt})
+
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": parts})
+        return await self._create(model=model, messages=messages, max_tokens=max_tokens)
 
     async def list_models(self):
         client = self._get_client()

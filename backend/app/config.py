@@ -33,6 +33,18 @@ class Settings(BaseSettings):
     # Fan-out concurrency ceiling (protects the model rate limit).
     ledger_max_concurrency: int = 8
 
+    # Upload guards (F13): per-file size cap and per-run document count cap.
+    ledger_max_upload_mb: int = 15
+    ledger_max_files: int = 40
+
+    # PDF lane: page ceiling — an over-cap statement quarantines with a reason
+    # rather than being silently truncated (a partial ledger is a corrupt ledger).
+    ledger_max_pdf_pages: int = 40
+
+    # PII redaction (F12): mask account/PAN/IFSC/phone/email before any document
+    # text is sent to a *live* provider. Mock mode never sends bytes anywhere.
+    ledger_redact_pii: bool = True
+
     # Transient-failure handling for live model calls (rate limits, 5xx, timeouts).
     # Retries with exponential backoff + jitter before degrading to the
     # deterministic parser (docs/ARCHITECTURE.md §8, F6).

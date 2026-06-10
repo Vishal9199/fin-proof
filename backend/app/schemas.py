@@ -18,7 +18,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-SourceType = Literal["receipt", "bank_csv", "upi_screenshot"]
+SourceType = Literal["receipt", "bank_csv", "upi_screenshot", "bank_pdf"]
 
 
 class TxnState(str, Enum):

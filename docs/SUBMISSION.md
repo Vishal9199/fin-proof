@@ -31,7 +31,7 @@ tested implementation are the same artifact.
 | Damco asks for… | Track | Where it is |
 | --- | --- | --- |
 | Pick a complex problem (needs a system, not a script) | A + B | Cross-source reconciliation with self-verification — see above |
-| **Build the solution — code it, ship it, public repo** | A | FastAPI · LangGraph state machine · Pandera · RapidFuzz · multi-provider · **46 tests** · deployed live |
+| **Build the solution — code it, ship it, public repo** | A | FastAPI · LangGraph state machine · Pandera · RapidFuzz · multi-provider · **80 tests** · deployed live |
 | **Design the architecture — design doc, diagrams, trade-offs, scale** | B | [ARCHITECTURE.md](./ARCHITECTURE.md) — 6 Mermaid diagrams, state machine, scale math, F1–F8 failure modes |
 | Record a 5–10 min video walking through your thinking | A + B | YouTube (Unlisted) — recorded from [WALKTHROUGH.md](./WALKTHROUGH.md) |
 | AgentOps & observability | — | Traced/timed/costed/scored spans on the dashboard + a **gated eval scorecard** (safety gate = quarantine recall ≥ 1.0) |

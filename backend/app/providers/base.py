@@ -26,13 +26,31 @@ from decimal import Decimal
 from typing import Awaitable, Callable, ClassVar
 
 from ..config import get_settings
-from .parsing import json_object, parse_receipt_text, to_decimal
+from .parsing import json_array, json_object, parse_date_any, parse_receipt_text, to_decimal
 
 log = logging.getLogger("ledger.providers")
 
 
 class TransientProviderError(Exception):
     """Raised/flagged for retryable failures (rate limit, 5xx, timeout, network)."""
+
+
+class ProviderCapabilityError(Exception):
+    """The selected provider cannot perform the requested operation (e.g. binary
+    attachments on a text-only provider). Never retried — the caller routes the
+    document to quarantine with an explicit reason instead."""
+
+
+@dataclass
+class Attachment:
+    """A binary document part (image or PDF) for a multimodal model call.
+
+    Carries raw bytes + MIME type; base64 encoding happens inside each vendor
+    adapter because every vendor wants a different envelope."""
+
+    media_type: str  # "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "application/pdf"
+    data: bytes
+    name: str = "document"
 
 
 @dataclass
@@ -112,18 +130,62 @@ _EXTRACT_PROMPT = (
 )
 _RECHECK_PROMPT = "Return only the final total amount as a number.\n\n"
 
+_VISUAL_EXTRACT_PROMPT = (
+    "You are reading a financial document (photo, screenshot, or PDF). "
+    "Classify it and extract as JSON with keys: "
+    "kind ('receipt' | 'upi_payment' | 'bank_statement' | 'other'), "
+    "merchant (string — the merchant/payee; for UPI payments the recipient), "
+    "amount (number, the final total paid), date (YYYY-MM-DD). "
+    "If this is NOT a financial transaction document, set kind to 'other'. "
+    "Return ONLY JSON."
+)
+_VISUAL_RECHECK_PROMPT = (
+    "Return ONLY the final total amount paid in this document, as a plain number. "
+    "If no amount is present, return 0."
+)
+
+_STATEMENT_PROMPT = (
+    "This document is a bank/card statement. Extract EVERY transaction row, across "
+    "all pages, as a JSON array of objects with keys: date (YYYY-MM-DD), "
+    "description (string), amount (number — the absolute transaction amount). "
+    "Exclude opening/closing balance lines. Return ONLY the JSON array."
+)
+_STATEMENT_RECHECK_PROMPT = (
+    "Re-read ONLY the transaction amounts in this bank/card statement, across all "
+    "pages, in document order (exclude opening/closing balance lines). "
+    "Return ONLY a JSON array of plain numbers."
+)
+
 
 class LLMProvider(ABC):
     """Uniform contract the whole pipeline depends on (it never imports an SDK)."""
 
     id: ClassVar[str] = "base"
     is_mock: ClassVar[bool] = False
+    # Whether the vendor can accept binary parts (images / PDFs). Text-only and
+    # mock providers leave this False; callers quarantine instead of calling.
+    supports_attachments: ClassVar[bool] = False
 
     @abstractmethod
     async def complete(
         self, *, model: str, prompt: str, system: str | None = None, max_tokens: int = 512
     ) -> LLMResponse:
         """One prompt → completion, with token usage. The only vendor-specific code."""
+
+    async def complete_multimodal(
+        self,
+        *,
+        model: str,
+        prompt: str,
+        attachments: list[Attachment],
+        system: str | None = None,
+        max_tokens: int = 1024,
+    ) -> LLMResponse:
+        """Prompt + binary parts → completion. Vendors that support vision/PDF
+        input override this; the default refuses loudly (and non-transiently)."""
+        raise ProviderCapabilityError(
+            f"provider '{self.id}' cannot accept binary attachments"
+        )
 
     def is_transient(self, exc: Exception) -> bool:
         """Whether a failure should be retried. Vendors may override for precision."""
@@ -174,9 +236,108 @@ class LLMProvider(ABC):
         }
         return parsed, r1.input_tokens + r2.input_tokens, r1.output_tokens + r2.output_tokens, model
 
+    async def extract_receipt_visual(
+        self, attachment: Attachment, source_type: str, *, fast_model: str, deep_model: str
+    ) -> tuple[dict, int, int, str]:
+        """Vision extraction of a single receipt/screenshot — the same two-read
+        self-consistency guardrail as the text path (F1), plus document
+        classification: a non-financial image comes back `kind="other"` with
+        zero confidence, so the caller quarantines instead of posting a
+        hallucinated number (F10). Identical for every vision-capable vendor."""
+        model = fast_model
+        r1 = await call_with_retries(
+            self,
+            lambda: self.complete_multimodal(
+                model=model, prompt=_VISUAL_EXTRACT_PROMPT, attachments=[attachment], max_tokens=300
+            ),
+            op="extract-visual",
+        )
+        payload = json_object(r1.text)
+        kind = str(payload.get("kind", "receipt")).strip().lower()
+        first = to_decimal(str(payload.get("amount", "0")))
+
+        r2 = await call_with_retries(
+            self,
+            lambda: self.complete_multimodal(
+                model=model, prompt=_VISUAL_RECHECK_PROMPT, attachments=[attachment], max_tokens=20
+            ),
+            op="recheck-visual",
+        )
+        second = to_decimal(re.sub(r"[^\d.]", "", r2.text) or "0")
+        confidence = 0.97 if abs(first - second) <= Decimal("0.01") else 0.55
+        if kind == "other":
+            confidence = 0.0  # not a transaction document — never postable
+
+        txn_date = parse_date_any(str(payload.get("date", ""))) or date.today()
+        parsed = {
+            "merchant": str(payload.get("merchant", "UNKNOWN")),
+            "amount": first,
+            "txn_date": txn_date,
+            "confidence": confidence,
+            "method": "self_consistency",
+            "total": first,
+            "item_sum": second,
+            "kind": kind,
+        }
+        return parsed, r1.input_tokens + r2.input_tokens, r1.output_tokens + r2.output_tokens, model
+
+    async def extract_statement(
+        self, source: "str | Attachment", *, fast_model: str, deep_model: str
+    ) -> tuple[list[dict], int, int, str]:
+        """Many-row statement extraction with a per-row self-consistency guardrail.
+
+        Read 1 extracts every row; read 2 independently re-reads just the amount
+        column. Deterministic code (never the model) compares them element-wise:
+        agreeing rows get high confidence, disagreeing rows collapse to 0.55 and
+        are quarantined individually by the verify gate; a row-count mismatch
+        collapses every row (F11). Uses the deep model — a 28-page statement is
+        the expensive, correctness-critical path. Each returned row:
+        {merchant, amount, txn_date (date|None), confidence, method}."""
+        model = deep_model
+
+        def _call(prompt: str, max_tokens: int):
+            if isinstance(source, Attachment):
+                return self.complete_multimodal(
+                    model=model, prompt=prompt, attachments=[source], max_tokens=max_tokens
+                )
+            return self.complete(model=model, prompt=prompt + "\n\n" + source, max_tokens=max_tokens)
+
+        r1 = await call_with_retries(self, lambda: _call(_STATEMENT_PROMPT, 8192), op="statement")
+        raw_rows = json_array(r1.text)
+        r2 = await call_with_retries(
+            self, lambda: _call(_STATEMENT_RECHECK_PROMPT, 4096), op="statement-recheck"
+        )
+        try:
+            recheck_amounts = [to_decimal(str(a)) for a in json_array(r2.text)]
+        except ValueError:
+            recheck_amounts = []
+
+        count_ok = len(recheck_amounts) == len(raw_rows)
+        rows: list[dict] = []
+        for i, raw in enumerate(raw_rows):
+            amount = to_decimal(str(raw.get("amount", "0")))
+            agree = (
+                count_ok
+                and i < len(recheck_amounts)
+                and abs(amount - recheck_amounts[i]) <= Decimal("0.01")
+            )
+            rows.append(
+                {
+                    "merchant": str(raw.get("description", "")).strip() or "UNKNOWN",
+                    "amount": amount,
+                    "txn_date": parse_date_any(str(raw.get("date", ""))),
+                    "confidence": 0.96 if agree else 0.55,
+                    "method": "self_consistency",
+                }
+            )
+        tokens_in = r1.input_tokens + r2.input_tokens
+        tokens_out = r1.output_tokens + r2.output_tokens
+        return rows, tokens_in, tokens_out, model
+
 
 # Re-exported so MockProvider and the degradation path share one parser.
 __all__ = [
-    "LLMProvider", "LLMResponse", "TransientProviderError",
-    "call_with_retries", "is_transient_by_name", "parse_receipt_text",
+    "Attachment", "LLMProvider", "LLMResponse", "ProviderCapabilityError",
+    "TransientProviderError", "call_with_retries", "is_transient_by_name",
+    "parse_receipt_text",
 ]

@@ -259,8 +259,24 @@ async def test_config(body: ConfigTest, request: Request) -> dict:
 async def reconcile_endpoint(files: list[UploadFile] = File(...)) -> dict:
     if not files:
         raise HTTPException(400, "Upload at least one document.")
+    s = get_settings()
+    if len(files) > s.ledger_max_files:
+        raise HTTPException(
+            400, f"Too many documents: {len(files)} (the per-run limit is {s.ledger_max_files})."
+        )
+    max_bytes = s.ledger_max_upload_mb * 1024 * 1024
+    docs: list[UploadedDoc] = []
+    for f in files:
+        name = f.filename or "unnamed"
+        data = await f.read()
+        if not data:
+            raise HTTPException(400, f"'{name}' is empty.")
+        if len(data) > max_bytes:
+            raise HTTPException(
+                413, f"'{name}' exceeds the {s.ledger_max_upload_mb} MB per-file limit."
+            )
+        docs.append(UploadedDoc(name=name, data=data))
     run_id = f"run_{uuid.uuid4().hex[:8]}"
-    docs = [UploadedDoc(name=f.filename or "unnamed", data=await f.read()) for f in files]
     _remember(_staged, run_id, docs)
     _remember(_status, run_id, {"state": "queued", "documents": len(docs)})
     # Launch immediately — execution does not wait for anyone to watch.
