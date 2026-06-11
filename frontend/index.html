@@ -161,7 +161,7 @@
       <div class="track hidden" data-track="lead">
         <div class="steps">
           <div class="step reveal"><div class="step-no">01</div><h3>Pick a complex problem</h3><p>The same trust problem — framed as a system with scale, latency, and failure-mode considerations.</p></div>
-          <div class="step reveal" style="--i:1"><div class="step-no">02</div><h3>Design the architecture</h3><p><code>docs/ARCHITECTURE.md</code>: 6 Mermaid diagrams, the state machine, scale math, latency trade-offs, and F1–F8 failure modes.</p></div>
+          <div class="step reveal" style="--i:1"><div class="step-no">02</div><h3>Design the architecture</h3><p><code>docs/ARCHITECTURE.md</code>: 6 Mermaid diagrams, the state machine, scale math, latency trade-offs, and F1–F13 failure modes.</p></div>
           <div class="step reveal" style="--i:2"><div class="step-no">03</div><h3>Record a video</h3><p>Present the design like I'm convincing a team — decisions, alternatives, and what would change my mind.</p></div>
         </div>
       </div>
@@ -172,7 +172,7 @@
           <div><span class="ct">Problem framing</span><span class="cd">why it needs a system, not a script</span></div>
           <div><span class="ct">System design</span><span class="cd">parallel fan-out → verify → reconcile</span></div>
           <div><span class="ct">Trade-offs</span><span class="cd">LangGraph, Decimal, SSE, two-tier routing</span></div>
-          <div><span class="ct">Failure modes</span><span class="cd">named guardrails F1–F8, honestly</span></div>
+          <div><span class="ct">Failure modes</span><span class="cd">named guardrails F1–F13, honestly</span></div>
         </div>
       </div>
     </section>
@@ -263,7 +263,7 @@
         <div class="ms"><span class="msv" data-prefix="₹" data-count="1720">0</span><span class="msl">posted, exact</span></div>
         <div class="ms"><span class="msv" data-count="1.0" data-decimals="1">0</span><span class="msl">quarantine recall</span></div>
         <div class="ms"><span class="msv" data-count="8">0</span><span class="msl">workers in parallel</span></div>
-        <div class="ms"><span class="msv">F1–F8</span><span class="msl">named guardrails</span></div>
+        <div class="ms"><span class="msv">F1–F13</span><span class="msl">named guardrails</span></div>
       </div>
     </section>
 
@@ -281,6 +281,8 @@
         <div class="fm reveal" style="--i:3"><span class="fmid">F5</span><b>Bank CSV schema drift</b><p>Pandera contract + fuzzy header recovery; self-heals or quarantines.</p></div>
         <div class="fm reveal" style="--i:4"><span class="fmid">F6</span><b>Model rate-limit / 5xx</b><p>Retry with backoff + jitter, then degrade — the run always completes.</p></div>
         <div class="fm reveal" style="--i:5"><span class="fmid">F8</span><b>Dashboard connects late</b><p>Decoupled execution + per-run replay buffer; or it polls the result.</p></div>
+        <div class="fm reveal" style="--i:6"><span class="fmid">F9</span><b>Pixels with no reader</b><p>A photo or scan mock mode can't read → quarantined with the reason on the card. Never fabricated.</p></div>
+        <div class="fm reveal" style="--i:7"><span class="fmid">F10</span><b>Non-financial document</b><p>The vision pass classifies first; a random screenshot is refused — not hallucinated into a transaction.</p></div>
       </div>
       <div class="roadmap reveal">
         <b>What I'd build next, honestly:</b> confidence <em>calibration</em> against a larger labeled set ·
