@@ -1,4 +1,4 @@
-# Ledger Sentinel — System Architecture
+# FinProof — System Architecture
 
 > **Thesis:** Reconciling financial documents is not an OCR problem, it is a
 > *trust* problem. The hard part is not reading a receipt — it is producing a

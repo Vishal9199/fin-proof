@@ -1,4 +1,4 @@
-// Ledger Sentinel — dependency-free dashboard.
+// FinProof — dependency-free dashboard.
 // Subscribes to the backend SSE stream and renders the live agent grid,
 // reconciliation canvas, and AgentOps panel. No framework, no build step.
 //

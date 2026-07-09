@@ -1,4 +1,4 @@
-"""Ledger Sentinel — autonomous reconciliation engine.
+"""FinProof — autonomous reconciliation engine.
 
 See docs/ARCHITECTURE.md for the system design. Package layout:
     config.py        application settings (and mock-mode switch)

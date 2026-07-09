@@ -1,4 +1,4 @@
-# Contributing & Extending Ledger Sentinel
+# Contributing & Extending FinProof
 
 This guide covers the dev loop, the project's non-negotiable conventions, and the
 two extension points the architecture is built around: **adding a model provider**
@@ -12,8 +12,8 @@ pipeline depends only on contracts, never on concretions.
 Everything runs on **Python 3.13**, no build step for the frontend.
 
 ```bash
-git clone https://github.com/mhussam-ai/ledger-sentinel
-cd ledger-sentinel/backend
+git clone https://github.com/Vishal9199/fin-proof
+cd fin-proof/backend
 
 python -m venv .venv
 .venv\Scripts\activate            # Windows  ·  source .venv/bin/activate elsewhere

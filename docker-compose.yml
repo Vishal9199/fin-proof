@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────
-# Ledger Sentinel — local one-command stack (single-origin).
+# FinProof — local one-command stack (single-origin).
 #   docker compose up  →  http://localhost:8000   (dashboard + API, one service)
 #
 # Builds the EXACT image the Hugging Face Space runs (root Dockerfile), so local

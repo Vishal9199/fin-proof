@@ -1,6 +1,6 @@
 # Security & Data Governance
 
-Ledger Sentinel handles financial documents, so security is a design property,
+FinProof handles financial documents, so security is a design property,
 not an afterthought. This summarizes the posture; the architectural rationale is
 in [ARCHITECTURE.md §9](./ARCHITECTURE.md#9-security--data-governance).
 

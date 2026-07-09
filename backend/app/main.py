@@ -1,4 +1,4 @@
-"""Ledger Sentinel API.
+"""FinProof API.
 
 Endpoints:
     POST /reconcile          stage a pile of documents, launch the run, return run_id
@@ -51,7 +51,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("ledger")
 
-app = FastAPI(title="Ledger Sentinel", version="1.1.0")
+app = FastAPI(title="FinProof", version="1.1.0")
 
 # CORS is added *outermost* so its headers are present on every response —
 # including error responses produced by the exception handler below. Without

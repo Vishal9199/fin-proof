@@ -15,7 +15,7 @@ serves pages, then fails the moment a CSV is processed (the Pandera import is la
 
 **Fix:** run from the venv explicitly so the right interpreter is used:
 ```powershell
-cd ledger-sentinel/backend
+cd fin-proof/backend
 .\.venv\Scripts\Activate.ps1                     # or: source .venv/bin/activate
 python -m uvicorn app.main:app --port 8000       # `python -m` can't pick the global uvicorn
 ```

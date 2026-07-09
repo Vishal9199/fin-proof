@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────
-# Ledger Sentinel — single-service image for Hugging Face Spaces (Docker SDK).
+# FinProof — single-service image for Hugging Face Spaces (Docker SDK).
 #
 # One container serves BOTH the FastAPI API and the vanilla-JS dashboard from
 # the same origin (see the StaticFiles mount in app/main.py). That's all a free

@@ -1,4 +1,4 @@
-"""Evaluation harness for Ledger Sentinel.
+"""Evaluation harness for FinProof.
 
 Evals are first-class here, not an afterthought. An autonomous financial agent is
 only as trustworthy as its *measured* behavior, so we score every run against a

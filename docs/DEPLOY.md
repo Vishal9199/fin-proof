@@ -1,6 +1,6 @@
-# Deploying Ledger Sentinel (free, live demo)
+# Deploying FinProof (free, live demo)
 
-Ledger Sentinel boots to **deterministic mock mode** — no API key, no secrets,
+FinProof boots to **deterministic mock mode** — no API key, no secrets,
 no billing. That makes it ideal for a free public demo: the golden path
 (3 posted / 3 quarantined / ₹1,720) runs out of the box, and a viewer can
 optionally plug in their own provider key from the dashboard.
@@ -14,14 +14,14 @@ a single HTTPS port, and single-origin means no CORS and one link to share.
 
 ## Recommended: Hugging Face Spaces (Docker) — free, no credit card
 
-Result: a public URL like `https://<your-hf-username>-ledger-sentinel.hf.space`.
-(This repo's own instance is live at <https://mhussam-ai-ledger-sentinel.hf.space>.)
+Result: a public URL like `https://<your-hf-username>-fin-proof.hf.space`.
+(Your own instance will be live at <https://mrkumarmahatha-fin-proof.hf.space> once pushed.)
 
 ### 1. Create the Space
 
 1. Sign in at <https://huggingface.co> (free; no card).
 2. **New → Space**.
-3. **Owner**: you · **Space name**: `ledger-sentinel`.
+3. **Owner**: you · **Space name**: `fin-proof`.
 4. **License**: MIT · **SDK**: **Docker** → *Blank* template.
 5. **Hardware**: *CPU basic* (free) · **Visibility**: *Public*.
 6. **Create Space**. You now have an empty Space git repo.
@@ -40,7 +40,7 @@ run `pip install huggingface_hub && hf auth login` once).
 
 ```bash
 # from the repo root (the folder containing Dockerfile + README.md)
-git remote add hf https://huggingface.co/spaces/<your-hf-username>/ledger-sentinel
+git remote add hf https://huggingface.co/spaces/<your-hf-username>/fin-proof
 git push hf main
 ```
 
@@ -80,7 +80,7 @@ on platforms that inject `$PORT`:
   Dockerfile path `./Dockerfile` → Instance type **Free**. Public
   `*.onrender.com` URL, auto-deploys on every push to `main`.
 - **Google Cloud Run** (generous free tier, scales to zero; requires a card):
-  `gcloud run deploy ledger-sentinel --source . --allow-unauthenticated`.
+  `gcloud run deploy fin-proof --source . --allow-unauthenticated`.
 
 ---
 
@@ -94,8 +94,8 @@ uvicorn app.main:app --reload --port 8000
 #   → open http://localhost:8000/app.html (dashboard)
 
 # Option B — the production image, exactly as the Space runs it
-docker build -t ledger-sentinel .
-docker run --rm -p 7860:7860 ledger-sentinel
+docker build -t fin-proof .
+docker run --rm -p 7860:7860 fin-proof
 #   → open http://localhost:7860/
 ```
 

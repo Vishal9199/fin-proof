@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Ledger Sentinel separates **two kinds of configuration** by design:
+FinProof separates **two kinds of configuration** by design:
 
 | | **Ops config** | **Model config** |
 |---|---|---|

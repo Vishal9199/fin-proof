@@ -155,7 +155,7 @@ async def evaluate(include_drift: bool = False) -> Scorecard:
 def format_scorecard(sc: Scorecard) -> str:
     lines = []
     lines.append("=" * 64)
-    lines.append("  LEDGER SENTINEL — EVAL SCORECARD")
+    lines.append("  FINPROOF — EVAL SCORECARD")
     lines.append("=" * 64)
     lines.append("  Gated metrics")
     for key, threshold in GATES.items():

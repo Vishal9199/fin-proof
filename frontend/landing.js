@@ -1,4 +1,4 @@
-// Ledger Sentinel — landing page animation engine. Vanilla, no dependencies.
+// FinProof — landing page animation engine. Vanilla, no dependencies.
 // Everything degrades gracefully under prefers-reduced-motion.
 
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
