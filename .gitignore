@@ -28,3 +28,10 @@ frontend/.vite/
 Thumbs.db
 .idea/
 .vscode/
+
+# Large binary / media files (served from container, not stored in git)
+*.mp4
+*.mov
+*.avi
+*.mkv
+frontend/demo-poster.jpg
