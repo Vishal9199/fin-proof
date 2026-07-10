@@ -182,6 +182,10 @@ python -m scripts.run_local    # offline terminal demo of the full pipeline
 | Doc | Audience | What's inside |
 |---|---|---|
 | **[README.md](./README.md)** (you are here) | Everyone | The problem, the thesis, what makes it a system, quickstart |
+| **[USE_CASES.md](./docs/USE_CASES.md)** | Reviewers | 3 concrete use cases with sample inputs and expected outputs |
+| **[PROMPTS.md](./docs/PROMPTS.md)** | Reviewers | All 6 prompts, the self-consistency technique, and iteration history |
+| **[AI_USAGE_JOURNAL.md](./docs/AI_USAGE_JOURNAL.md)** | Reviewers | How AI was used to *build* this project — tools, prompts, decisions |
+| **[REFLECTION.md](./docs/REFLECTION.md)** | Reviewers | What worked well, what I'd do differently, known limitations, roadmap |
 | **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | Tech Lead reviewers | Diagrams, the state machine, scale math, 8 failure modes + guardrails, evals, trade-offs, rejected alternatives |
 | **[API.md](./docs/API.md)** | Integrators | Every REST endpoint, the SSE event protocol, the runtime control plane, `curl` examples |
 | **[DEPLOY.md](./docs/DEPLOY.md)** | Operators | Ship a free live demo to a Hugging Face Space in ~5 min (Render / Cloud Run too) |
@@ -195,6 +199,10 @@ python -m scripts.run_local    # offline terminal demo of the full pipeline
 ```
 fin-proof/
 ├── docs/
+│   ├── USE_CASES.md           # 3 concrete use cases with inputs, outputs, and golden numbers
+│   ├── PROMPTS.md             # all 6 prompts explained — design rationale + iterations
+│   ├── AI_USAGE_JOURNAL.md    # how AI was used to BUILD the project
+│   ├── REFLECTION.md          # what worked, what to improve, known limitations
 │   ├── ARCHITECTURE.md        # system design, diagrams, scale, trade-offs, failure modes
 │   ├── API.md                 # REST + SSE reference, control-plane flow, curl examples
 │   ├── DEPLOY.md              # free live demo (Hugging Face Space) + AWS path
