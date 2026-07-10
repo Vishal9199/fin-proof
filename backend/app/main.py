@@ -377,6 +377,41 @@ async def get_run(run_id: str) -> RunResult:
     return result
 
 
+# ── Sample data endpoints (for the "Load sample data" dashboard button) ──────
+# Lists and serves files from the repo's sample_data/ directory so reviewers
+# can load realistic test data in one click without downloading anything manually.
+_SAMPLE_DATA_DIR = Path(__file__).resolve().parents[2] / "sample_data"
+
+
+@app.get("/sample-files")
+async def list_sample_files() -> dict:
+    """Return all file paths under sample_data/, relative to the repo root."""
+    if not _SAMPLE_DATA_DIR.is_dir():
+        return {"files": []}
+    paths = [
+        str(p.relative_to(_SAMPLE_DATA_DIR.parent))
+        for p in sorted(_SAMPLE_DATA_DIR.rglob("*"))
+        if p.is_file() and not p.name.startswith(".")
+    ]
+    return {"files": paths}
+
+
+@app.get("/sample-file")
+async def get_sample_file(path: str) -> JSONResponse:
+    """Serve a single file from sample_data/. Path traversal is prevented by
+    resolving the requested path inside _SAMPLE_DATA_DIR only."""
+    from fastapi.responses import FileResponse
+    resolved = (_SAMPLE_DATA_DIR.parent / path).resolve()
+    # Security: only serve files that resolve to inside sample_data/
+    try:
+        resolved.relative_to(_SAMPLE_DATA_DIR)
+    except ValueError:
+        raise HTTPException(403, "Path outside sample_data/ is not allowed.")
+    if not resolved.is_file():
+        raise HTTPException(404, f"Sample file not found: {path}")
+    return FileResponse(resolved)
+
+
 # ── Static dashboard (single-origin deploy) ───────────────────────────────────
 # Serve the vanilla-JS dashboard from the *same* process as the API. Mounted
 # last, so every API route above is matched first and this only catches the

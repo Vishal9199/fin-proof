@@ -22,6 +22,9 @@ const $ = (id) => document.getElementById(id);
 let selectedFiles = [];
 let metrics = { spans: 0, latency: 0, cost: 0, faithSum: 0, faithN: 0 };
 
+// In-memory ledger state for export and human-review features
+let ledgerState = { posted: [], quarantined: [] };
+
 // ── Health badge (with a couple of retries while the server boots) ───────────
 const PROVIDER_SHORT = { anthropic: "Claude", google: "Gemini", openai: "GPT", mock: "Mock" };
 
@@ -104,6 +107,35 @@ function setFiles(files) {
   $("run-btn").disabled = files.length === 0;
 }
 
+// ── Load sample data button ────────────────────────────────────────
+// Fetches all files from the backend's /sample-files endpoint and
+// stages them exactly as if the user had dragged the sample_data/ folder.
+$("load-sample-btn").addEventListener("click", async () => {
+  const btn = $("load-sample-btn");
+  btn.disabled = true;
+  btn.textContent = "Loading…";
+  try {
+    const res = await fetch(`${API}/sample-files`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { files: paths } = await res.json();
+    const fetched = await Promise.all(
+      paths.map(async (p) => {
+        const r = await fetch(`${API}/sample-file?path=${encodeURIComponent(p)}`);
+        if (!r.ok) throw new Error(`Could not fetch ${p}`);
+        const blob = await r.blob();
+        return new File([blob], p.split("/").pop(), { type: blob.type || "text/plain" });
+      })
+    );
+    setFiles(fetched);
+    btn.textContent = `✓ ${fetched.length} files loaded`;
+    setTimeout(() => { btn.textContent = "⚡ Load sample data"; btn.disabled = false; }, 2000);
+  } catch (err) {
+    btn.textContent = "⚡ Load sample data";
+    btn.disabled = false;
+    showError(`Could not load sample files: ${err.message}. Are you running locally? Drop the sample_data/ folder instead.`);
+  }
+});
+
 // ── Run ────────────────────────────────────────────────
 $("run-btn").addEventListener("click", startRun);
 
@@ -157,8 +189,14 @@ function streamRun(runId) {
   on("agent.cell.done", (p) => upsertCell(p.doc, "done", p));
   on("trace", addTrace);
   on("drift", showDrift);
-  on("txn.posted", (p) => addCard("posted-list", "posted", p.merchant, `₹${p.amount}`, "Posted to ledger"));
-  on("txn.quarantined", (p) => addCard("quarantine-list", "quarantine", p.merchant, `⚠ ₹${p.amount}`, p.reason));
+  on("txn.posted", (p) => {
+    ledgerState.posted.push(p);
+    addCard("posted-list", "posted", p.merchant, `₹${p.amount}`, "Posted to ledger", false, p);
+  });
+  on("txn.quarantined", (p) => {
+    ledgerState.quarantined.push(p);
+    addCard("quarantine-list", "quarantine", p.merchant, `⚠ ₹${p.amount}`, p.reason, false, p);
+  });
   on("canvas.duplicate", (p) => addCard("links-list", "duplicate", "DUPLICATE", `${(p.score * 100) | 0}%`, p.detail));
   on("canvas.anomaly", (p) => addCard("links-list", "anomaly", "ANOMALY", `${(p.score * 100) | 0}%`, p.detail, true));
   on("run.completed", (p) => {
@@ -211,6 +249,7 @@ async function pollForResult(runId, attempt = 0) {
 
 function renderResult(r) {
   resetPanels();
+  ledgerState = { posted: r.posted || [], quarantined: r.quarantined || [] };
   (r.links || []).forEach((l) => {
     if (l.kind === "duplicate")
       addCard("links-list", "duplicate", "DUPLICATE", `${(l.score * 100) | 0}%`, l.detail);
@@ -218,10 +257,10 @@ function renderResult(r) {
       addCard("links-list", "anomaly", "ANOMALY", `${(l.score * 100) | 0}%`, l.detail, true);
   });
   (r.posted || []).forEach((t) =>
-    addCard("posted-list", "posted", t.merchant, `₹${t.amount}`, "Posted to ledger")
+    addCard("posted-list", "posted", t.merchant, `₹${t.amount}`, "Posted to ledger", false, t)
   );
   (r.quarantined || []).forEach((t) =>
-    addCard("quarantine-list", "quarantine", t.merchant, `⚠ ₹${t.amount}`, t.quarantine_reason || "Quarantined")
+    addCard("quarantine-list", "quarantine", t.merchant, `⚠ ₹${t.amount}`, t.quarantine_reason || "Quarantined", false, t)
   );
   showSummary({
     total_posted_amount: r.total_posted_amount,
@@ -252,13 +291,62 @@ function upsertCell(doc, state, p = {}) {
   }
 }
 
-function addCard(listId, kind, title, right, why, flash = false) {
+function addCard(listId, kind, title, right, why, flash = false, txn = null) {
   const el = document.createElement("div");
   el.className = `card ${kind}${flash ? " flash" : ""}`;
+  const isQuarantine = kind === "quarantine" && txn;
   el.innerHTML =
     `<div class="row"><span class="merchant">${title}</span><span class="amount">${right}</span></div>` +
-    `<div class="why">${why}</div>`;
+    `<div class="why">${why}</div>` +
+    (isQuarantine
+      ? `<div class="review-actions">
+           <button class="review-btn approve" title="Approve — move to Posted ledger">✓ Approve</button>
+           <button class="review-btn reject" title="Reject — permanently dismiss">✕ Reject</button>
+         </div>`
+      : "");
+  if (isQuarantine) {
+    el.querySelector(".approve").addEventListener("click", () => approveCard(el, txn));
+    el.querySelector(".reject").addEventListener("click", () => rejectCard(el, txn));
+  }
   $(listId).appendChild(el);
+}
+
+// Human-in-the-loop: approve a quarantined item → move it to the posted ledger
+function approveCard(cardEl, txn) {
+  cardEl.remove();
+  ledgerState.quarantined = ledgerState.quarantined.filter((t) => t.id !== (txn && txn.id));
+  const t = txn || {};
+  const approvedTxn = { ...t, _humanApproved: true };
+  ledgerState.posted.push(approvedTxn);
+  addCard("posted-list", "posted", t.merchant || "(approved)", `₹${t.amount || 0}`, "✓ Human-approved from quarantine", false, null);
+  refreshSummaryFromState();
+}
+
+// Human-in-the-loop: reject a quarantined item → dismiss it permanently
+function rejectCard(cardEl, txn) {
+  cardEl.style.transition = "opacity .3s, max-height .3s";
+  cardEl.style.opacity = "0";
+  cardEl.style.maxHeight = "0";
+  cardEl.style.overflow = "hidden";
+  setTimeout(() => {
+    cardEl.remove();
+    ledgerState.quarantined = ledgerState.quarantined.filter((t) => t.id !== (txn && txn.id));
+    refreshSummaryFromState();
+  }, 300);
+}
+
+// Recompute the summary bar after a human review action
+function refreshSummaryFromState() {
+  const total = ledgerState.posted
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
+    .toFixed(2);
+  updateSummaryContent({
+    total_posted_amount: total,
+    posted: ledgerState.posted.length,
+    quarantined: ledgerState.quarantined.length,
+    links: document.querySelectorAll("#links-list .card").length,
+    documents: document.querySelectorAll(".agent-cell").length,
+  });
 }
 
 function addTrace(t) {
@@ -295,10 +383,55 @@ function showDrift(p) {
 function showSummary(p) {
   const s = $("summary");
   s.classList.remove("hidden");
-  s.innerHTML =
+  updateSummaryContent(p);
+  $("export-btn").classList.remove("hidden");
+}
+
+function updateSummaryContent(p) {
+  $("summary-content").innerHTML =
     `<div><b class="ok">₹${p.total_posted_amount}</b><div>posted total</div></div>` +
     `<div><b>${p.posted}</b> posted · <b class="warn">${p.quarantined}</b> quarantined · <b>${p.links}</b> links</div>` +
     `<div>${p.documents} documents reconciled</div>`;
+}
+
+// ── Export to CSV ────────────────────────────────────────────────────────────
+$("export-btn").addEventListener("click", exportCSV);
+
+function exportCSV() {
+  const rows = [
+    ["Status", "Merchant", "Amount (INR)", "Date", "Source", "Confidence", "Reason"],
+  ];
+  ledgerState.posted.forEach((t) =>
+    rows.push([
+      t._humanApproved ? "POSTED (Human-approved)" : "POSTED",
+      t.merchant || "",
+      t.amount || "",
+      t.txn_date || "",
+      t.source_doc || "",
+      t.confidence ? JSON.stringify(t.confidence) : "",
+      "",
+    ])
+  );
+  ledgerState.quarantined.forEach((t) =>
+    rows.push([
+      "QUARANTINED",
+      t.merchant || "",
+      t.amount || "",
+      t.txn_date || "",
+      t.source_doc || "",
+      t.confidence ? JSON.stringify(t.confidence) : "",
+      t.quarantine_reason || t.reason || "",
+    ])
+  );
+  const csv = rows
+    .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `finproof-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function resetPanels() {
@@ -308,6 +441,8 @@ function resetPanels() {
   $("agent-count").textContent = "0";
   $("drift-banner").classList.add("hidden");
   $("summary").classList.add("hidden");
+  $("export-btn").classList.add("hidden");
+  ledgerState = { posted: [], quarantined: [] };
   metrics = { spans: 0, latency: 0, cost: 0, faithSum: 0, faithN: 0 };
 }
 

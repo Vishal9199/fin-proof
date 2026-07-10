@@ -83,8 +83,9 @@
   <div id="error-banner" class="error-banner hidden"></div>
 
   <div id="dropzone" class="dropzone">
-    <p>Drag your <strong>receipts, bank statements (CSV / PDF), and UPI screenshots (photos, scans, text)</strong> here — or click “Upload pile”.</p>
+    <p>Drag your <strong>receipts, bank statements (CSV / PDF), and UPI screenshots (photos, scans, text)</strong> here — or click "Upload pile".</p>
     <p class="hint">No API key? Runs in deterministic mock mode. Try the files in <code>sample_data/</code>.</p>
+    <button type="button" id="load-sample-btn" class="sample-btn">⚡ Load sample data</button>
     <ul id="file-list" class="file-list"></ul>
   </div>
 
@@ -129,7 +130,11 @@
     </section>
   </main>
 
-  <footer id="summary" class="summary hidden"></footer>
+  <footer id="summary" class="summary hidden">
+    <div id="summary-content"></div>
+    <button id="export-btn" class="export-btn hidden" title="Download reconciled ledger as CSV">⬇ Export CSV</button>
+  </footer>
+
 
   <script src="./app.js"></script>
 </body>
