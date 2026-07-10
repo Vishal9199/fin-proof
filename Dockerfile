@@ -20,7 +20,8 @@ ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    LEDGER_FRONTEND_DIR=/app/frontend
+    LEDGER_FRONTEND_DIR=/app/frontend \
+    FIN_PROOF_SAMPLE_DATA_DIR=/app/sample_data
 
 WORKDIR /app
 
@@ -32,6 +33,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Application code + the static dashboard it serves.
 COPY backend/app ./app
 COPY frontend ./frontend
+COPY sample_data ./sample_data
 
 USER user
 EXPOSE 7860

@@ -380,7 +380,10 @@ async def get_run(run_id: str) -> RunResult:
 # ── Sample data endpoints (for the "Load sample data" dashboard button) ──────
 # Lists and serves files from the repo's sample_data/ directory so reviewers
 # can load realistic test data in one click without downloading anything manually.
-_SAMPLE_DATA_DIR = Path(__file__).resolve().parents[2] / "sample_data"
+_SAMPLE_DATA_DIR = Path(
+    os.getenv("FIN_PROOF_SAMPLE_DATA_DIR")
+    or Path(__file__).resolve().parents[2] / "sample_data"
+)
 
 
 @app.get("/sample-files")
