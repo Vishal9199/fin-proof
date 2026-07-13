@@ -219,18 +219,33 @@ async def answer_ledger_query(
     if rt.mock_mode:
         q = question.lower()
         total = sum(float(t.amount) for t in posted)
-        if "total" in q or "how much" in q:
-            return f"Total posted amount is ₹{total:.2f} across {len(posted)} transactions."
-        if "quarantine" in q or "flagged" in q:
-            return (f"{len(quarantined)} transaction(s) are quarantined. "
-                    + (", ".join(f"{t.merchant} ₹{t.amount}" for t in quarantined[:3]) or "None."))
+        
+        # Specific categories first
         if "food" in q or "dining" in q:
             food = [t for t in posted if t.category == "Food & Dining"]
             s = sum(float(t.amount) for t in food)
             return f"₹{s:.2f} spent on Food & Dining across {len(food)} transaction(s)."
+        if "transport" in q or "ola" in q or "uber" in q or "cab" in q:
+            transport = [t for t in posted if t.category == "Transport"]
+            s = sum(float(t.amount) for t in transport)
+            return f"₹{s:.2f} spent on Transport across {len(transport)} transaction(s)."
+        if "shop" in q or "amazon" in q or "flipkart" in q:
+            shop = [t for t in posted if t.category == "Shopping"]
+            s = sum(float(t.amount) for t in shop)
+            return f"₹{s:.2f} spent on Shopping across {len(shop)} transaction(s)."
+            
+        # General queries
+        if "quarantine" in q or "flagged" in q:
+            return (f"{len(quarantined)} transaction(s) are quarantined. "
+                    + (", ".join(f"{t.merchant} ₹{t.amount}" for t in quarantined[:3]) or "None."))
         if "category" in q or "categories" in q or "breakdown" in q:
             cats = build_categories_summary(posted)
             return "Spending by category: " + ", ".join(f"{k} ₹{v:.0f}" for k, v in cats.items())
+            
+        # Generic totals last
+        if "total" in q or "how much" in q or "spent" in q:
+            return f"Total posted amount is ₹{total:.2f} across {len(posted)} transactions."
+            
         return f"Based on the reconciled ledger with {len(posted)} posted transactions totalling ₹{total:.2f}, I can answer questions about spending, categories, merchants, or flagged items."
 
     try:
