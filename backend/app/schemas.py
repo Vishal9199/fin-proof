@@ -47,6 +47,8 @@ class Transaction(BaseModel):
     state: TxnState = TxnState.EXTRACTED
     evidence: list[str] = Field(default_factory=list)
     quarantine_reason: Optional[str] = None
+    category: Optional[str] = None        # e.g. "Food & Dining", "Transport"
+    normalized_merchant: Optional[str] = None  # cleaned-up display name
 
     @field_validator("amount")
     @classmethod
@@ -99,3 +101,5 @@ class RunResult(BaseModel):
     total_posted_amount: Decimal = Decimal("0")
     documents: int = 0
     duration_ms: int = 0
+    narrative: Optional[str] = None                    # AI-generated summary paragraph
+    categories_summary: dict[str, float] = Field(default_factory=dict)  # {category: total_amount}

@@ -132,8 +132,20 @@
 
   <footer id="summary" class="summary hidden">
     <div id="summary-content"></div>
+    <div id="ai-insights" class="ai-insights hidden">
+      <div class="insight-badge">✨ AI Summary</div>
+      <p id="ai-narrative"></p>
+    </div>
     <button id="export-btn" class="export-btn hidden" title="Download reconciled ledger as CSV">⬇ Export CSV</button>
   </footer>
+
+  <section id="chat-panel" class="chat-panel hidden">
+    <div class="chat-history" id="chat-history"></div>
+    <form id="chat-form" class="chat-form">
+      <input type="text" id="chat-input" placeholder="Ask questions about your reconciled ledger... (e.g. 'How much did I spend on food?')" autocomplete="off" />
+      <button type="submit" class="btn-primary" id="chat-submit">Ask</button>
+    </form>
+  </section>
 
 
   <script src="./app.js"></script>

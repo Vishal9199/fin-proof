@@ -116,7 +116,10 @@ async function startRun() {
     return;
   }
   streamRun(runId);
+  currentRunId = runId;
 }
+
+let currentRunId = null;
 
 function streamRun(runId) {
   let settled = false, opened = false;
@@ -129,8 +132,20 @@ function streamRun(runId) {
   on("agent.cell.done",  (p) => upsertCell(p.doc, "done", p));
   on("trace", addTrace);
   on("drift", showDrift);
-  on("txn.posted", (p) => { ledgerState.posted.push(p); addCard("posted-list", "posted", p.merchant, `₹${p.amount}`, "Posted to ledger", false, p); });
-  on("txn.quarantined", (p) => { ledgerState.quarantined.push(p); addCard("quarantine-list", "quarantine", p.merchant, `⚠ ₹${p.amount}`, p.reason, false, p); });
+  on("txn.posted", (p) => { ledgerState.posted.push(p); addCard("posted-list", "posted", p.normalized_merchant || p.merchant, `₹${p.amount}`, "Posted to ledger", false, p); });
+  on("txn.quarantined", (p) => { ledgerState.quarantined.push(p); addCard("quarantine-list", "quarantine", p.normalized_merchant || p.merchant, `⚠ ₹${p.amount}`, p.reason || p.quarantine_reason, false, p); });
+  on("txn.enriched", (p) => {
+    // Update existing card with normalized name, category, and possibly a new reason
+    const card = document.querySelector(`.card[data-id="${p.id}"]`);
+    if (card) {
+      card.querySelector(".merchant").innerHTML = `${p.normalized_merchant} <span class="cat-badge">${p.category}</span>`;
+      if (p.quarantine_reason) card.querySelector(".why").textContent = p.quarantine_reason;
+    }
+  });
+  on("run.narrative", (p) => {
+    $("ai-insights").classList.remove("hidden");
+    $("ai-narrative").textContent = p.narrative;
+  });
   on("canvas.duplicate", (p) => addCard("links-list", "duplicate", "DUPLICATE", `${(p.score * 100) | 0}%`, p.detail));
   on("canvas.anomaly",   (p) => addCard("links-list", "anomaly", "ANOMALY", `${(p.score * 100) | 0}%`, p.detail, true));
   on("run.completed", (p) => { settled = true; showSummary(p); es.close(); $("run-btn").disabled = false; });
@@ -163,8 +178,14 @@ function renderResult(r) {
     if (l.kind === "duplicate") addCard("links-list", "duplicate", "DUPLICATE", `${(l.score * 100) | 0}%`, l.detail);
     if (l.kind === "anomaly")   addCard("links-list", "anomaly",   "ANOMALY",   `${(l.score * 100) | 0}%`, l.detail, true);
   });
-  (r.posted     || []).forEach((t) => addCard("posted-list",    "posted",    t.merchant, `₹${t.amount}`,   "Posted to ledger", false, t));
-  (r.quarantined|| []).forEach((t) => addCard("quarantine-list","quarantine",t.merchant, `⚠ ₹${t.amount}`, t.quarantine_reason || "Quarantined", false, t));
+  (r.posted     || []).forEach((t) => addCard("posted-list",    "posted",    t.normalized_merchant || t.merchant, `₹${t.amount}`,   "Posted to ledger", false, t));
+  (r.quarantined|| []).forEach((t) => addCard("quarantine-list","quarantine",t.normalized_merchant || t.merchant, `⚠ ₹${t.amount}`, t.quarantine_reason || t.reason || "Quarantined", false, t));
+  
+  if (r.narrative) {
+    $("ai-insights").classList.remove("hidden");
+    $("ai-narrative").textContent = r.narrative;
+  }
+  
   showSummary({ total_posted_amount: r.total_posted_amount, posted: (r.posted||[]).length,
     quarantined: (r.quarantined||[]).length, links: (r.links||[]).length, documents: r.documents });
 }
@@ -191,9 +212,13 @@ function upsertCell(doc, state, p = {}) {
 function addCard(listId, kind, title, right, why, flash = false, txn = null) {
   const el = document.createElement("div");
   el.className = `card ${kind}${flash ? " flash" : ""}`;
+  if (txn && txn.id) el.dataset.id = txn.id;
   const isQ = kind === "quarantine" && txn;
+  
+  const catHtml = (txn && txn.category && txn.category !== "Other") ? ` <span class="cat-badge">${txn.category}</span>` : "";
+  
   el.innerHTML =
-    `<div class="row"><span class="merchant">${title}</span><span class="amount">${right}</span></div>` +
+    `<div class="row"><span class="merchant">${title}${catHtml}</span><span class="amount">${right}</span></div>` +
     `<div class="why">${why}</div>` +
     (isQ ? `<div class="review-actions">
       <button class="review-btn approve" title="Approve — move to Posted ledger">✓ Approve</button>
@@ -254,7 +279,12 @@ function showDrift(p) {
     `Remap confidence ${(p.confidence * 100) | 0}% → <b>${p.action}</b>.`;
 }
 
-function showSummary(p) { $("summary").classList.remove("hidden"); updateSummaryContent(p); $("export-btn").classList.remove("hidden"); }
+function showSummary(p) {
+  $("summary").classList.remove("hidden");
+  $("chat-panel").classList.remove("hidden");
+  updateSummaryContent(p); 
+  $("export-btn").classList.remove("hidden"); 
+}
 
 function updateSummaryContent(p) {
   $("summary-content").innerHTML =
@@ -281,9 +311,10 @@ $("export-btn").addEventListener("click", () => {
 });
 
 function resetPanels() {
-  ["agent-grid", "posted-list", "quarantine-list", "links-list", "trace-log"].forEach((id) => ($(id).innerHTML = ""));
+  ["agent-grid", "posted-list", "quarantine-list", "links-list", "trace-log", "chat-history"].forEach((id) => ($(id).innerHTML = ""));
   $("agent-count").textContent = "0";
-  ["drift-banner", "summary", "export-btn"].forEach((id) => $(id).classList.add("hidden"));
+  ["drift-banner", "summary", "export-btn", "ai-insights", "chat-panel"].forEach((id) => $(id).classList.add("hidden"));
+  $("ai-narrative").textContent = "";
   ledgerState = { posted: [], quarantined: [] };
   metrics = { spans: 0, latency: 0, cost: 0, faithSum: 0, faithN: 0 };
 }
@@ -420,4 +451,41 @@ $("cfg-save").addEventListener("click", async () => {
       : `Saved. Live on ${data.provider_label} · ${data.fast_model}.`, true);
     $("cfg-key").value = ""; refreshHealth(); setTimeout(closeSettings, 1100);
   } catch (err) { cfgMsg(`Couldn't save: ${err.message}`, false); }
+});
+
+// ── Conversational Query Box ──────────────────────────────────────────────
+$("chat-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("chat-input");
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = "";
+  
+  const history = $("chat-history");
+  const userMsg = document.createElement("div");
+  userMsg.className = "chat-msg user";
+  userMsg.textContent = q;
+  history.appendChild(userMsg);
+  history.scrollTop = history.scrollHeight;
+
+  const botMsg = document.createElement("div");
+  botMsg.className = "chat-msg assistant";
+  botMsg.textContent = "Thinking...";
+  history.appendChild(botMsg);
+  history.scrollTop = history.scrollHeight;
+
+  try {
+    const res = await fetch(`${API}/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q, run_id: currentRunId })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    botMsg.textContent = data.answer;
+  } catch (err) {
+    botMsg.textContent = `Could not answer: ${err.message}`;
+    botMsg.style.color = "var(--red)";
+  }
+  history.scrollTop = history.scrollHeight;
 });

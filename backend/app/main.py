@@ -278,6 +278,29 @@ async def get_run(run_id: str) -> RunResult:
     return result
 
 
+class QueryRequest(BaseModel):
+    question: str
+    run_id: str | None = None  # if None, uses the most recent completed run
+
+
+@app.post("/query")
+async def ledger_query(body: QueryRequest) -> dict:
+    """Answer a free-text question about the reconciled ledger using the LLM."""
+    from .ai_enrichment import answer_ledger_query
+    # Find the run to query
+    run_id = body.run_id
+    if run_id is None:
+        # Use the most recent completed run
+        run_id = next((k for k in reversed(list(_results.keys()))), None)
+    if run_id is None:
+        raise HTTPException(404, "No completed runs found. Run a reconciliation first.")
+    result = _results.get(run_id)
+    if result is None:
+        raise HTTPException(404, f"Run '{run_id}' not found or not yet complete.")
+    answer = await answer_ledger_query(body.question, result.posted, result.quarantined)
+    return {"run_id": run_id, "question": body.question, "answer": answer}
+
+
 # ── Sample data (for the "Load sample data" dashboard button) ─────────────────
 _SAMPLE_DATA_DIR = Path(
     os.getenv("FIN_PROOF_SAMPLE_DATA_DIR")

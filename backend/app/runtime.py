@@ -78,6 +78,13 @@ class RuntimeConfig:
             return True
         return bool(self.api_key_for(provider_id))
 
+    def build_provider(self):
+        """Return the active LLMProvider instance (useful for ad-hoc calls)."""
+        from .providers import build_provider as _build
+        p = self.effective_provider
+        return _build(p, self.api_key_for(p))
+
+
     # ── Secret-safe serialization for the API ────────────────────────────────
     def public_snapshot(self) -> dict:
         """Everything the dashboard needs — and not one secret."""

@@ -14,3 +14,5 @@ class GraphState(TypedDict, total=False):
     links: list[MatchLink]
     posted: list[Transaction]
     quarantined: list[Transaction]
+    narrative: str                      # AI-generated run summary
+    categories_summary: dict[str, float]  # {category: total_amount}
