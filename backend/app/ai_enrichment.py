@@ -375,8 +375,8 @@ async def generate_quarantine_resolution_suggestion(
             + "\n\nOther Quarantined Transactions:\n"
             + "\n".join(f"  - {t.merchant} | ₹{t.amount} | {t.txn_date}" for t in quarantined[:5] if t.id != txn.id)
             + "\n\nProvide a brief explanation of the problem (2 sentences) and exactly 2 or 3 actions a human could take to resolve it.\n"
-            f"Respond ONLY as JSON matching this schema: \n"
-            f'{{"explanation": "...", "actions": [{{"label": "Use ₹XYZ (Statement)", "action": "override", "amount": XYZ, "merchant": "...", "category": "..."}, {{"label": "Dismiss Transaction", "action": "reject"}}]}}'
+            "Respond ONLY as JSON matching this schema: \n"
+            '{"explanation": "...", "actions": [{"label": "Use ₹XYZ (Statement)", "action": "override", "amount": XYZ, "merchant": "...", "category": "..."}, {"label": "Dismiss Transaction", "action": "reject"}]}'
         )
         resp = await provider.complete(
             model=rt.active_fast_model,
