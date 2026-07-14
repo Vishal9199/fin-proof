@@ -365,3 +365,127 @@ body {
   outline: none;
   border-color: var(--accent);
 }
+
+/* ── AI Suggestion Box inside Quarantine Cards ───────────────────────────── */
+.ai-suggestion-box {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(255, 180, 84, 0.05);
+  border: 1px dashed rgba(255, 180, 84, 0.3);
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  animation: slidein 0.2s ease;
+}
+.ai-suggestion-box.hidden {
+  display: none;
+}
+.ai-suggestion-title {
+  font-weight: 700;
+  color: var(--amber);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-suggestion-text {
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.ai-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ai-action-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ai-action-btn:hover {
+  background: var(--panel-2);
+  border-color: var(--accent);
+}
+
+/* ── Suggestion Chips for Chat ───────────────────────────────────────────── */
+.chat-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.chat-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.chat-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+/* ── Custom HTML/CSS Chart inside Chat ───────────────────────────────────── */
+.chat-chart {
+  margin-top: 10px;
+  background: rgba(8, 9, 12, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  width: 100%;
+}
+.chat-chart-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.chat-chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-chart-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chat-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+.chat-chart-label {
+  font-weight: 600;
+  color: var(--text);
+}
+.chat-chart-bar-container {
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.chat-chart-bar-value {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue) 0%, var(--green) 100%);
+  border-radius: 4px;
+  width: 0%; /* Animated on load via JS */
+  transition: width 0.8s var(--ease);
+}

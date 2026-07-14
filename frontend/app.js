@@ -223,30 +223,120 @@ function addCard(listId, kind, title, right, why, flash = false, txn = null) {
     (isQ ? `<div class="review-actions">
       <button class="review-btn approve" title="Approve — move to Posted ledger">✓ Approve</button>
       <button class="review-btn reject"  title="Reject — permanently dismiss">✕ Reject</button>
-    </div>` : "");
+      <button class="review-btn suggest-btn" title="Ask AI how to resolve this conflict">✨ AI Suggest</button>
+    </div>
+    <div class="ai-suggestion-box hidden"></div>` : "");
   if (isQ) {
     el.querySelector(".approve").addEventListener("click", () => approveCard(el, txn));
     el.querySelector(".reject" ).addEventListener("click", () => rejectCard(el, txn));
+    el.querySelector(".suggest-btn").addEventListener("click", (e) => suggestResolve(el, txn, e.target));
   }
   $(listId).appendChild(el);
 }
 
+async function suggestResolve(cardEl, txn, suggestBtn) {
+  let suggestionBox = cardEl.querySelector(".ai-suggestion-box");
+  if (!suggestionBox) return;
+  
+  suggestBtn.disabled = true;
+  suggestBtn.textContent = "Analyzing…";
+  suggestionBox.innerHTML = `<div class="tok-dim">Asking AI accountant for advice…</div>`;
+  suggestionBox.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`${API}/runs/${currentRunId}/quarantine/${txn.id}/suggest`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    
+    suggestBtn.textContent = "✨ Suggested";
+    
+    let buttonsHtml = (data.actions || []).map((act, idx) => {
+      return `<button type="button" class="ai-action-btn" data-idx="${idx}">
+        ${act.label}
+      </button>`;
+    }).join("");
+    
+    suggestionBox.innerHTML = `
+      <div class="ai-suggestion-title">💡 AI Recommendation</div>
+      <div class="ai-suggestion-text">${data.explanation}</div>
+      <div class="ai-action-buttons">${buttonsHtml}</div>
+    `;
+    
+    // Bind click handlers to action buttons
+    suggestionBox.querySelectorAll(".ai-action-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const act = data.actions[parseInt(btn.dataset.idx)];
+        await applyResolution(cardEl, txn, act);
+      });
+    });
+  } catch (err) {
+    suggestBtn.disabled = false;
+    suggestBtn.textContent = "✨ AI Suggest";
+    suggestionBox.innerHTML = `<div style="color: var(--red)">Failed to load suggestion: ${err.message}</div>`;
+  }
+}
+
+async function applyResolution(cardEl, txn, act) {
+  // Disable all review buttons
+  cardEl.querySelectorAll(".review-btn, .ai-action-btn").forEach(b => b.disabled = true);
+  
+  try {
+    const res = await fetch(`${API}/runs/${currentRunId}/quarantine/${txn.id}/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(act)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    
+    if (act.action === "override") {
+      cardEl.remove();
+      ledgerState.quarantined = ledgerState.quarantined.filter((t) => t.id !== (txn?.id));
+      const finalTxn = {
+        ...txn,
+        amount: act.amount ?? txn.amount,
+        merchant: act.merchant ?? txn.merchant,
+        normalized_merchant: act.merchant ?? txn.normalized_merchant ?? txn.merchant,
+        category: act.category ?? txn.category,
+        _humanApproved: true
+      };
+      ledgerState.posted.push(finalTxn);
+      addCard(
+        "posted-list",
+        "posted",
+        finalTxn.normalized_merchant || finalTxn.merchant,
+        `₹${finalTxn.amount}`,
+        `✓ Resolved with AI: ${act.label}`
+      );
+    } else if (act.action === "reject") {
+      Object.assign(cardEl.style, { transition: "opacity .3s, max-height .3s", opacity: "0", maxHeight: "0", overflow: "hidden" });
+      setTimeout(() => {
+        cardEl.remove();
+        ledgerState.quarantined = ledgerState.quarantined.filter((t) => t.id !== (txn?.id));
+        refreshSummaryFromState();
+      }, 300);
+    }
+    refreshSummaryFromState();
+  } catch (err) {
+    alert(`Could not resolve transaction: ${err.message}`);
+    cardEl.querySelectorAll(".review-btn, .ai-action-btn").forEach(b => b.disabled = false);
+  }
+}
+
 function approveCard(cardEl, txn) {
-  cardEl.remove();
-  ledgerState.quarantined = ledgerState.quarantined.filter((t) => t.id !== (txn?.id));
-  const t = txn || {};
-  ledgerState.posted.push({ ...t, _humanApproved: true });
-  addCard("posted-list", "posted", t.merchant || "(approved)", `₹${t.amount || 0}`, "✓ Human-approved from quarantine");
-  refreshSummaryFromState();
+  applyResolution(cardEl, txn, {
+    action: "override",
+    amount: txn.amount,
+    merchant: txn.merchant,
+    category: txn.category,
+    label: "Approved manual"
+  });
 }
 
 function rejectCard(cardEl, txn) {
-  Object.assign(cardEl.style, { transition: "opacity .3s, max-height .3s", opacity: "0", maxHeight: "0", overflow: "hidden" });
-  setTimeout(() => {
-    cardEl.remove();
-    ledgerState.quarantined = ledgerState.quarantined.filter((t) => t.id !== (txn?.id));
-    refreshSummaryFromState();
-  }, 300);
+  applyResolution(cardEl, txn, {
+    action: "reject"
+  });
 }
 
 function refreshSummaryFromState() {
@@ -482,10 +572,72 @@ $("chat-form").addEventListener("submit", async (e) => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    
     botMsg.textContent = data.answer;
+    
+    // Check if chart is returned in the response
+    if (data.chart) {
+      renderChatChart(data.chart, botMsg);
+    }
   } catch (err) {
     botMsg.textContent = `Could not answer: ${err.message}`;
     botMsg.style.color = "var(--red)";
   }
   history.scrollTop = history.scrollHeight;
+});
+
+function renderChatChart(chartData, container) {
+  const chartEl = document.createElement("div");
+  chartEl.className = "chat-chart";
+  
+  const title = document.createElement("div");
+  title.className = "chat-chart-title";
+  title.textContent = chartData.type === "bar" ? "Spending Breakdown" : "Financial Visualization";
+  chartEl.appendChild(title);
+  
+  const barsContainer = document.createElement("div");
+  barsContainer.className = "chat-chart-bars";
+  
+  const data = chartData.data || [];
+  const maxVal = Math.max(...data.map(d => d.value), 1);
+  
+  data.forEach(item => {
+    const pct = ((item.value / maxVal) * 100).toFixed(0);
+    const row = document.createElement("div");
+    row.className = "chat-chart-row";
+    row.innerHTML = `
+      <div class="chat-chart-labels">
+        <span class="chat-chart-label">${item.label}</span>
+        <span class="chat-chart-value">₹${item.value.toFixed(2)}</span>
+      </div>
+      <div class="chat-chart-bar-container">
+        <div class="chat-chart-bar-value" style="width: 0%"></div>
+      </div>
+    `;
+    barsContainer.appendChild(row);
+    
+    // Animate the bar width on next frame
+    setTimeout(() => {
+      const valBar = row.querySelector(".chat-chart-bar-value");
+      if (valBar) valBar.style.width = `${pct}%`;
+    }, 100);
+  });
+  
+  chartEl.appendChild(barsContainer);
+  container.appendChild(chartEl);
+  
+  // Auto-scroll after chart renders
+  setTimeout(() => {
+    const history = $("chat-history");
+    history.scrollTop = history.scrollHeight;
+  }, 150);
+}
+
+// Wire up query chips
+document.querySelectorAll(".chat-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const q = chip.dataset.query;
+    $("chat-input").value = q;
+    $("chat-form").dispatchEvent(new Event("submit"));
+  });
 });

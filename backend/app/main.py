@@ -301,6 +301,83 @@ async def ledger_query(body: QueryRequest) -> dict:
     return {"run_id": run_id, "question": body.question, "answer": answer}
 
 
+@app.get("/runs/{run_id}/quarantine/{txn_id}/suggest")
+async def get_quarantine_suggestion(run_id: str, txn_id: str) -> dict:
+    """Propose AI-assisted resolution options for a quarantined transaction."""
+    from .ai_enrichment import generate_quarantine_resolution_suggestion
+    result = _results.get(run_id)
+    if result is None:
+        raise HTTPException(404, "Run not found.")
+    
+    # Find transaction in quarantined list
+    txn = next((t for t in result.quarantined if t.id == txn_id), None)
+    if txn is None:
+        raise HTTPException(404, "Transaction not found in quarantine.")
+        
+    suggestion = await generate_quarantine_resolution_suggestion(txn, result.posted, result.quarantined)
+    return suggestion
+
+
+class ResolveRequest(BaseModel):
+    action: str  # "override" | "reject"
+    amount: float | None = None
+    merchant: str | None = None
+    category: str | None = None
+
+
+@app.post("/runs/{run_id}/quarantine/{txn_id}/resolve")
+async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest) -> dict:
+    """Resolve a quarantined item by overriding its fields or dismissing it."""
+    from decimal import Decimal
+    result = _results.get(run_id)
+    if result is None:
+        raise HTTPException(404, "Run not found.")
+        
+    # Find transaction in quarantined list
+    txn_idx = next((i for i, t in enumerate(result.quarantined) if t.id == txn_id), None)
+    if txn_idx is None:
+        raise HTTPException(404, "Transaction not found in quarantine.")
+        
+    txn = result.quarantined[txn_idx]
+    
+    if body.action == "override":
+        # Modify transaction fields
+        if body.amount is not None:
+            txn.amount = Decimal(str(body.amount))
+        if body.merchant is not None:
+            txn.merchant = body.merchant
+            txn.normalized_merchant = body.merchant
+        if body.category is not None:
+            txn.category = body.category
+            
+        txn.state = "POSTED"
+        txn.quarantine_reason = None
+        
+        # Remove from quarantined, add to posted
+        result.quarantined.pop(txn_idx)
+        result.posted.append(txn)
+        
+    elif body.action == "reject":
+        # Dismiss transaction entirely
+        result.quarantined.pop(txn_idx)
+        
+    else:
+        raise HTTPException(400, f"Unsupported action '{body.action}'.")
+        
+    # Recalculate RunResult summary values
+    from .ai_enrichment import build_categories_summary
+    result.total_posted_amount = sum((t.amount for t in result.posted), Decimal("0"))
+    result.categories_summary = build_categories_summary(result.posted)
+    
+    return {
+        "ok": True,
+        "run_id": run_id,
+        "posted_count": len(result.posted),
+        "quarantined_count": len(result.quarantined),
+        "total_posted_amount": str(result.total_posted_amount),
+    }
+
+
 # ── Sample data (for the "Load sample data" dashboard button) ─────────────────
 _SAMPLE_DATA_DIR = Path(
     os.getenv("FIN_PROOF_SAMPLE_DATA_DIR")

@@ -201,8 +201,8 @@ async def answer_ledger_query(
     question: str,
     posted: list["Transaction"],
     quarantined: list["Transaction"],
-) -> str:
-    """Answer a free-text question about the reconciled ledger using the LLM."""
+) -> dict:
+    """Answer a free-text question about the reconciled ledger, returning text + chart if requested."""
     rt = get_runtime()
 
     def _txn_lines(txns: list["Transaction"]) -> str:
@@ -224,41 +224,173 @@ async def answer_ledger_query(
         if "food" in q or "dining" in q:
             food = [t for t in posted if t.category == "Food & Dining"]
             s = sum(float(t.amount) for t in food)
-            return f"₹{s:.2f} spent on Food & Dining across {len(food)} transaction(s)."
+            return {
+                "answer": f"₹{s:.2f} spent on Food & Dining across {len(food)} transaction(s).",
+                "chart": {
+                    "type": "bar",
+                    "data": [{"label": "Food & Dining", "value": s}]
+                }
+            }
         if "transport" in q or "ola" in q or "uber" in q or "cab" in q:
             transport = [t for t in posted if t.category == "Transport"]
             s = sum(float(t.amount) for t in transport)
-            return f"₹{s:.2f} spent on Transport across {len(transport)} transaction(s)."
+            return {
+                "answer": f"₹{s:.2f} spent on Transport across {len(transport)} transaction(s).",
+                "chart": {
+                    "type": "bar",
+                    "data": [{"label": "Transport", "value": s}]
+                }
+            }
         if "shop" in q or "amazon" in q or "flipkart" in q:
             shop = [t for t in posted if t.category == "Shopping"]
             s = sum(float(t.amount) for t in shop)
-            return f"₹{s:.2f} spent on Shopping across {len(shop)} transaction(s)."
+            return {
+                "answer": f"₹{s:.2f} spent on Shopping across {len(shop)} transaction(s).",
+                "chart": {
+                    "type": "bar",
+                    "data": [{"label": "Shopping", "value": s}]
+                }
+            }
             
         # General queries
         if "quarantine" in q or "flagged" in q:
-            return (f"{len(quarantined)} transaction(s) are quarantined. "
-                    + (", ".join(f"{t.merchant} ₹{t.amount}" for t in quarantined[:3]) or "None."))
+            return {
+                "answer": f"{len(quarantined)} transaction(s) are quarantined. "
+                        + (", ".join(f"{t.merchant} ₹{t.amount}" for t in quarantined[:3]) or "None.")
+            }
         if "category" in q or "categories" in q or "breakdown" in q:
             cats = build_categories_summary(posted)
-            return "Spending by category: " + ", ".join(f"{k} ₹{v:.0f}" for k, v in cats.items())
+            return {
+                "answer": "Spending by category: " + ", ".join(f"{k} ₹{v:.0f}" for k, v in cats.items()),
+                "chart": {
+                    "type": "bar",
+                    "data": [{"label": k, "value": v} for k, v in cats.items()]
+                }
+            }
             
         # Generic totals last
         if "total" in q or "how much" in q or "spent" in q:
-            return f"Total posted amount is ₹{total:.2f} across {len(posted)} transactions."
+            cats = build_categories_summary(posted)
+            return {
+                "answer": f"Total posted amount is ₹{total:.2f} across {len(posted)} transactions.",
+                "chart": {
+                    "type": "bar",
+                    "data": [{"label": k, "value": v} for k, v in cats.items()]
+                }
+            }
             
-        return f"Based on the reconciled ledger with {len(posted)} posted transactions totalling ₹{total:.2f}, I can answer questions about spending, categories, merchants, or flagged items."
+        return {
+            "answer": f"Based on the reconciled ledger with {len(posted)} posted transactions totalling ₹{total:.2f}, I can answer questions about spending, categories, merchants, or flagged items."
+        }
 
     try:
         provider = rt.build_provider()
+        prompt = (
+            f"Ledger data:\n{ledger_ctx}\n\nQuestion: {question}\n\n"
+            f"If the user asks about categories, breakdowns, comparisons, or totals, "
+            f"reply with your natural language text answer, AND include a JSON block representing the chart data "
+            f"like this at the end of your response:\n"
+            f"```chart\n"
+            f'{{"type": "bar", "data": [{{"label": "Food & Dining", "value": 450}}, {{"label": "Transport", "value": 150}}]}}\n'
+            f"```"
+        )
         resp = await provider.complete(
             model=rt.active_fast_model,
             system=(
                 "You are a financial assistant. Answer questions about the reconciled ledger "
                 "provided. Be concise (2-3 sentences max). Use ₹ for Indian Rupee amounts."
             ),
-            prompt=f"Ledger data:\n{ledger_ctx}\n\nQuestion: {question}",
-            max_tokens=200,
+            prompt=prompt,
+            max_tokens=250,
         )
-        return resp.text.strip()
+        text = resp.text.strip()
+        chart_match = re.search(r"```chart\s*(\{.*\})\s*```", text, re.DOTALL)
+        chart_data = None
+        if chart_match:
+            try:
+                import json as _json
+                chart_data = _json.loads(chart_match.group(1))
+                text = text.replace(chart_match.group(0), "").strip()
+            except Exception:
+                pass
+        
+        res = {"answer": text}
+        if chart_data:
+            res["chart"] = chart_data
+        return res
     except Exception as exc:  # noqa: BLE001
-        return f"Could not process query: {exc}"
+        return {"answer": f"Could not process query: {exc}"}
+
+
+async def generate_quarantine_resolution_suggestion(
+    txn: "Transaction",
+    posted: list["Transaction"],
+    quarantined: list["Transaction"],
+) -> dict:
+    """Propose AI-assisted resolution options for a quarantined transaction."""
+    rt = get_runtime()
+    
+    # Check if there is a matching transaction or conflict pattern.
+    # In mock mode, we build high-quality deterministic responses for the sample data.
+    if rt.mock_mode:
+        m = txn.merchant.lower()
+        if "brew" in m or "brew & co" in m:
+            return {
+                "explanation": "Amount mismatch between Brew & Co receipt (₹450.00) and bank statement (₹540.00). This is typically caused by an unprinted tips, service charges, or local taxes.",
+                "actions": [
+                    {"label": "Use Statement Amount (₹540.00)", "action": "override", "amount": 540.00, "merchant": "Brew & Co", "category": "Food & Dining"},
+                    {"label": "Use Receipt Amount (₹450.00)", "action": "override", "amount": 450.00, "merchant": "Brew & Co", "category": "Food & Dining"},
+                    {"label": "Dismiss Transaction", "action": "reject"}
+                ]
+            }
+        elif "zest" in m or "cafe" in m:
+            return {
+                "explanation": "This receipt was quarantined due to low OCR confidence when reading the faded page. The extracted merchant is Cafe Zest and amount is ₹360.00.",
+                "actions": [
+                    {"label": "Approve current details (₹360.00)", "action": "override", "amount": 360.00, "merchant": "Cafe Zest", "category": "Food & Dining"},
+                    {"label": "Dismiss Transaction", "action": "reject"}
+                ]
+            }
+        else:
+            return {
+                "explanation": f"This transaction was flagged due to: {txn.quarantine_reason or 'manual review flag'}.",
+                "actions": [
+                    {"label": f"Approve as ₹{txn.amount}", "action": "override", "amount": float(txn.amount), "merchant": txn.merchant, "category": txn.category or "Other"},
+                    {"label": "Dismiss Transaction", "action": "reject"}
+                ]
+            }
+
+    try:
+        provider = rt.build_provider()
+        prompt = (
+            f"A financial transaction was quarantined. Analyze it and recommend how a human reviewer should resolve it.\n\n"
+            f"Quarantined Transaction:\n"
+            f"  ID: {txn.id}\n"
+            f"  Merchant: {txn.merchant}\n"
+            f"  Amount: ₹{txn.amount}\n"
+            f"  Date: {txn.txn_date}\n"
+            f"  Quarantine Reason: {txn.quarantine_reason}\n\n"
+            f"Posted Transactions Context:\n"
+            + "\n".join(f"  - {t.merchant} | ₹{t.amount} | {t.txn_date} | {t.category}" for t in posted[:10])
+            + "\n\nOther Quarantined Transactions:\n"
+            + "\n".join(f"  - {t.merchant} | ₹{t.amount} | {t.txn_date}" for t in quarantined[:5] if t.id != txn.id)
+            + "\n\nProvide a brief explanation of the problem (2 sentences) and exactly 2 or 3 actions a human could take to resolve it.\n"
+            f"Respond ONLY as JSON matching this schema: \n"
+            f'{{"explanation": "...", "actions": [{{"label": "Use ₹XYZ (Statement)", "action": "override", "amount": XYZ, "merchant": "...", "category": "..."}, {{"label": "Dismiss Transaction", "action": "reject"}}]}}'
+        )
+        resp = await provider.complete(
+            model=rt.active_fast_model,
+            prompt=prompt,
+            max_tokens=250,
+        )
+        import json as _json
+        data = _json.loads(re.search(r"\{.*\}", resp.text, re.DOTALL).group())
+        return data
+    except Exception as e:
+        return {
+            "explanation": f"Quarantined: {txn.quarantine_reason or 'No reason provided'}. (AI suggestion failed: {e})",
+            "actions": [
+                {"label": f"Approve as ₹{txn.amount}", "action": "override", "amount": float(txn.amount), "merchant": txn.merchant, "category": txn.category or "Other"},
+                {"label": "Dismiss Transaction", "action": "reject"}
+            ]
+        }

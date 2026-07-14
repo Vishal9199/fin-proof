@@ -141,6 +141,12 @@
 
   <section id="chat-panel" class="chat-panel hidden">
     <div class="chat-history" id="chat-history"></div>
+    <div class="chat-chips" id="chat-chips">
+      <button type="button" class="chat-chip" data-query="Show spending by category">📊 Category Breakdown</button>
+      <button type="button" class="chat-chip" data-query="Total amount spent">💸 Total Spend</button>
+      <button type="button" class="chat-chip" data-query="Are there any quarantined transactions?">⚠️ Show Flags</button>
+      <button type="button" class="chat-chip" data-query="How much did I spend on Swiggy?">🍔 Swiggy Spend</button>
+    </div>
     <form id="chat-form" class="chat-form">
       <input type="text" id="chat-input" placeholder="Ask questions about your reconciled ledger... (e.g. 'How much did I spend on food?')" autocomplete="off" />
       <button type="submit" class="btn-primary" id="chat-submit">Ask</button>
