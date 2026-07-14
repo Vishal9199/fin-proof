@@ -156,8 +156,6 @@ Return ONLY a JSON array of plain numbers.
 
 ---
 
-## Summary Table
-
 | # | Prompt | Model tier | Output type | Self-consistency role |
 |---|---|---|---|---|
 | 1 | Receipt text extraction | fast | JSON object | Read 1 (full) |
@@ -166,3 +164,92 @@ Return ONLY a JSON array of plain numbers.
 | 4 | Vision amount recheck | fast | plain number | Read 2 (amount only) |
 | 5 | Statement row extraction | **deep** | JSON array | Read 1 (all rows) |
 | 6 | Statement amount recheck | **deep** | number array | Read 2 (amounts only) |
+| 7 | Quarantine resolution suggestion | fast | JSON (`explanation` + `actions[]`) | Advisory — human decides |
+| 8 | Conversational ledger query | fast | JSON (`answer` + optional `chart`) | Single-shot Q&A |
+
+---
+
+## Prompt 7 — AI Quarantine Resolution Suggestion
+
+```
+You are an expert AI financial reconciliation assistant.
+A transaction has been quarantined for human review.
+
+Transaction:
+  Merchant: {merchant}
+  Amount: ₹{amount}
+  Date: {txn_date}
+  Quarantine Reason: {quarantine_reason}
+
+Posted Transactions Context:
+  - {merchant} | ₹{amount} | {date} | {category}
+  ...
+
+Other Quarantined Transactions:
+  ...
+
+Provide a brief explanation of the problem (2 sentences) and exactly
+2 or 3 actions a human could take to resolve it.
+Respond ONLY as JSON matching this schema:
+{"explanation": "...", "actions": [{"label": "...", "action": "override|reject", "amount": 0.0, "merchant": "...", "category": "..."}]}
+```
+
+**Why this design:**
+- **Context injection** — the full quarantine reason, the transaction, and nearby
+  posted/quarantined entries give the model the evidence trail it needs to advise
+  accurately instead of guessing.
+- **Constrained action schema** — `action` is restricted to `override` or `reject`;
+  the backend enforces this. Free-text action names would be unparseable.
+- **Deterministic mock fallback** — when running in mock mode, curated golden
+  suggestions are returned for the sample data files (BREW & CO, CAFE ZEST) so
+  the feature is always demonstrable with no API key.
+- **2–3 actions rule** — fewer gives too little choice; more increases
+  decision fatigue for the reviewer.
+
+**What was tried and rejected:**
+- Returning plain text advice — not actionable in the UI; users need buttons, not
+  a wall of text.
+- Asking the model to *decide* instead of suggest — violates the human-in-the-loop
+  principle. The AI advises; the human clicks.
+
+---
+
+## Prompt 8 — Conversational Ledger Query
+
+```
+You are a precise financial AI assistant for a reconciliation system.
+Answer questions about the ledger using ONLY the data below.
+If asked for a category breakdown or spending summary, include a
+\"chart\" field in your JSON response.
+
+Posted Transactions:
+  - {merchant} | ₹{amount} | {category} | {date}
+  ...
+
+Quarantined Transactions:
+  - {merchant} | ₹{amount} | {quarantine_reason}
+  ...
+
+User question: {query}
+
+Respond ONLY as JSON:
+{"answer": "...", "chart": {"title": "...", "data": [{"label": "...", "value": 0}]}}
+(omit the \"chart\" key if the question does not call for one)
+```
+
+**Why this design:**
+- **Grounded in ledger data** — "using ONLY the data below" prevents the model
+  hallucinating transactions that don't exist in the current run.
+- **Optional `chart` field** — category/spend questions include a chart; factual
+  questions ("why is X quarantined?") omit it. The frontend renders the chart only
+  when the key is present — a clean conditional rendering contract.
+- **CSS-native charts** — the frontend renders the `chart.data` array as animated
+  HTML+CSS bar charts with no third-party library. The model returns numbers;
+  layout and animation are pure CSS.
+- **`answer` always present** — even if the chart is missing, the user gets a
+  plain-text answer. Graceful degradation for non-chart questions.
+
+**What was tried and rejected:**
+- Asking the model to return Chart.js config — too brittle; schema changes between
+  library versions break the response.
+- Embedding SVG in the response — XSS risk; CSS bars are safe by construction.

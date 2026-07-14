@@ -115,6 +115,94 @@ Lightweight lifecycle probe for a polling client.
 ```
 `state` ∈ `queued · running · completed · failed`.
 
+### `GET /runs/{run_id}/quarantine/{txn_id}/suggest`
+Fetch AI-generated resolution advice for a quarantined transaction. Returns a
+structured explanation and a list of 2–3 actionable options the reviewer can
+choose from.
+
+- **Returns:** `200`
+
+```jsonc
+{
+  "explanation": "Amount mismatch between receipt (₹450) and bank statement (₹540). Bank statements are typically authoritative for settled amounts.",
+  "actions": [
+    { "label": "Use Statement Amount ₹540", "action": "override", "amount": 540.0, "merchant": "BREW & CO", "category": "Food & Drink" },
+    { "label": "Use Receipt Amount ₹450",   "action": "override", "amount": 450.0, "merchant": "BREW & CO", "category": "Food & Drink" },
+    { "label": "Dismiss Transaction",        "action": "reject" }
+  ]
+}
+```
+
+> In mock mode this returns curated golden suggestions for the sample data files.
+> With a live provider the explanation and amounts are model-generated from the
+> full ledger context.
+
+```bash
+curl -s http://localhost:8000/runs/run_1a2b3c4d/quarantine/txn_abc/suggest
+```
+
+### `POST /runs/{run_id}/quarantine/{txn_id}/resolve`
+Apply a resolution action chosen by the human reviewer. The transaction is
+either overridden (moved to POSTED with a new amount/merchant/category) or
+rejected (removed from the ledger). `total_posted_amount` is recalculated
+in-memory and reflected in subsequent `GET /runs/{run_id}` calls.
+
+- **Body:**
+
+```jsonc
+{
+  "action":   "override",          // "override" | "reject"
+  "amount":   540.0,               // required for "override"
+  "merchant": "BREW & CO",         // required for "override"
+  "category": "Food & Drink"       // required for "override"
+}
+```
+
+- **Returns:** `200`
+
+```jsonc
+{ "status": "resolved", "txn_id": "txn_abc", "new_state": "POSTED", "total_posted_amount": "2260.00" }
+```
+
+```bash
+curl -s -X POST http://localhost:8000/runs/run_1a2b3c4d/quarantine/txn_abc/resolve \
+  -H "Content-Type: application/json" \
+  -d '{"action":"override","amount":540.0,"merchant":"BREW & CO","category":"Food & Drink"}'
+```
+
+### `POST /runs/{run_id}/query`
+Ask the AI Ledger Assistant a natural-language question about the reconciled
+ledger. Returns a plain-text answer and, for category/spend questions, a
+structured `chart` payload the dashboard renders as animated CSS bar charts.
+
+- **Body:** `{ "query": "Show spending by category" }`
+- **Returns:** `200`
+
+```json
+{
+  "answer": "Here is the spending breakdown for your run:\nFood & Drink ₹320, Transport ₹200, Groceries ₹450, Other ₹750.",
+  "chart": {
+    "title": "SPENDING BREAKDOWN",
+    "data": [
+      { "label": "Food & Drink", "value": 320 },
+      { "label": "Transport",    "value": 200 },
+      { "label": "Groceries",    "value": 450 },
+      { "label": "Other",        "value": 750 }
+    ]
+  }
+}
+```
+
+> `chart` is omitted when the question does not call for a visual breakdown
+> (e.g. *"Why is Swiggy posted?"*). The frontend only renders the chart element
+> when the key is present.
+
+```bash
+curl -s -X POST http://localhost:8000/runs/run_1a2b3c4d/query \
+  -H "Content-Type: application/json" \
+  -d '{"query":"Show spending by category"}'
+```
+
 ---
 
 ## Control plane (runtime model configuration)

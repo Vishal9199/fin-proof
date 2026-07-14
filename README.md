@@ -85,6 +85,8 @@ silently corrupting the ledger.
 | 🔌 **Pluggable model providers** | Choose **Anthropic, Google Gemini, OpenAI, or Mock** from the dashboard — paste a key, **fetch the models that key can actually use**, pick one from a dropdown, and the agent switches live with no restart. Default is always mock; nothing about the model stack is decided from the environment. One uniform provider contract; the pipeline never imports an SDK. |
 | 🔁 **Durable runs** | Execution is decoupled from the live stream and backed by a replay buffer — a late, dropped, or proxy-blocked dashboard still gets the full picture (or polls the result). |
 | 🛟 **Graceful degradation** | No API key? It runs in deterministic mock mode so the demo never dies on stage. Transient model errors retry with backoff, then degrade — the run always completes. |
+| 🤖 **AI Quarantine Advisor** | Every flagged card exposes a **✨ AI Suggest** button. One click fetches a structured explanation of *why* it was quarantined plus 2–3 actionable override options (use statement amount, use receipt amount, dismiss). Choosing an option resolves the item and moves it to the Posted ledger in a single click — no form, no manual edit. Works in mock mode with curated golden suggestions. |
+| 💬 **AI Ledger Chat + charting** | A conversational AI assistant lives at the bottom of the dashboard. Pre-built query chips (📊 Category Breakdown, 💸 Total Spend, ⚠️ Show Flags) or free-text questions return instant answers. Category or spend queries automatically render animated, accessible **CSS bar charts** inline in the chat — no third-party chart library required. |
 
 ## 🎯 Key capabilities
 
@@ -106,6 +108,7 @@ what real-world agentic AI looks like when it touches money:
 | **Stack** | FastAPI · LangGraph · Pandera · RapidFuzz · Pydantic · vanilla-JS dashboard (no build) |
 | **Models** | Anthropic Claude · Google Gemini · OpenAI GPT · deterministic Mock — switchable live from the dashboard |
 | **Tests / evals** | `80` passing · `5` gated eval metrics (safety gate = quarantine recall ≥ 1.0) |
+| **AI UX** | AI Quarantine Advisor (inline resolution) · AI Ledger Chat (query chips + CSS bar charts) |
 | **Run anywhere** | Boots to mock mode: no API key, no network, deterministic every time |
 | **Deploy** | One image, one origin → free Hugging Face Space (Render / Cloud Run ready) |
 
@@ -174,8 +177,10 @@ python -m scripts.run_local    # offline terminal demo of the full pipeline
 2. Watch the **agent grid** light up — every document extracting in parallel, confidence streaming in.
 3. The **reconciliation canvas** draws links between the bank line and the receipt photo for the same coffee.
 4. One entry pulses **amber**: *"Amount mismatch — receipt ₹450, statement ₹540. Quarantined."* The system caught a discrepancy a human would miss, and shows the evidence trail.
-5. Open the **AgentOps tab**: traces, per-step latency, token cost, and a faithfulness score for every extraction.
-6. (Optional) Mid-demo, drop in `bank_statement_drifted.csv` with a renamed column — the **schema-drift firewall** detects it, quarantines the rows, and self-heals the mapping live.
+5. Click **✨ AI Suggest** on the quarantined BREW & CO card — the AI explains the conflict and offers *"Use Statement ₹540"*, *"Use Receipt ₹450"*, or *"Dismiss"*. Pick one; the card moves to Posted instantly.
+6. In the **AI Chat** at the bottom, click the 📊 **Category Breakdown** chip — the assistant returns a spending split and draws an animated CSS bar chart inline, with no page reload.
+7. Open the **AgentOps tab**: traces, per-step latency, token cost, and a faithfulness score for every extraction.
+8. (Optional) Mid-demo, drop in `bank_statement_drifted.csv` with a renamed column — the **schema-drift firewall** detects it, quarantines the rows, and self-heals the mapping live.
 
 ## 📚 Documentation map
 
