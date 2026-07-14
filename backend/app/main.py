@@ -297,8 +297,9 @@ async def ledger_query(body: QueryRequest) -> dict:
     result = _results.get(run_id)
     if result is None:
         raise HTTPException(404, f"Run '{run_id}' not found or not yet complete.")
-    answer = await answer_ledger_query(body.question, result.posted, result.quarantined)
-    return {"run_id": run_id, "question": body.question, "answer": answer}
+    result_data = await answer_ledger_query(body.question, result.posted, result.quarantined)
+    # answer_ledger_query returns {"answer": "...", "chart": {...}}  — spread it directly
+    return {"run_id": run_id, "question": body.question, **result_data}
 
 
 @app.get("/runs/{run_id}/quarantine/{txn_id}/suggest")
