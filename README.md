@@ -26,7 +26,7 @@ to post a number it can't prove.**
 _The LLM proposes; deterministic code disposes._
 
 [![Live Demo](https://img.shields.io/badge/live%20demo-online-brightgreen?logo=huggingface&logoColor=white)](https://huggingface.co/spaces/mrkumarmahatha/fin-proof)
-[![Demo video](https://img.shields.io/badge/demo-90s%20walkthrough-ff4438)](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.mp4)
+[![Demo video](https://img.shields.io/badge/demo-90s%20walkthrough-ff4438)](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.webp)
 [![CI](https://github.com/Vishal9199/fin-proof/actions/workflows/ci.yml/badge.svg)](https://github.com/Vishal9199/fin-proof/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-80%20passing-brightgreen)
 ![Eval gates](https://img.shields.io/badge/eval%20gates-PASS-brightgreen)
@@ -35,7 +35,7 @@ _The LLM proposes; deterministic code disposes._
 ![Frontend](https://img.shields.io/badge/frontend-no%20build%20step-ff69b4)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-[**▶ Live Demo**](https://huggingface.co/spaces/mrkumarmahatha/fin-proof) · [**🎬 Demo video**](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.mp4) · [Architecture](./docs/ARCHITECTURE.md) · [API reference](./docs/API.md) · [Quickstart](#-quickstart) · [How it works](#-how-it-works) · [Deploy](./docs/DEPLOY.md) · [Contributing](./docs/CONTRIBUTING.md)
+[**▶ Live Demo**](https://huggingface.co/spaces/mrkumarmahatha/fin-proof) · [**🎬 Demo video**](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.webp) · [Architecture](./docs/ARCHITECTURE.md) · [API reference](./docs/API.md) · [Quickstart](#-quickstart) · [How it works](#-how-it-works) · [Deploy](./docs/DEPLOY.md) · [Contributing](./docs/CONTRIBUTING.md)
 
 <br/>
 
@@ -50,7 +50,7 @@ _The LLM proposes; deterministic code disposes._
 > billing — so the full reconcile pipeline runs in your browser the moment it
 > loads. Want your own? **[Deploy a free Space in ~5 minutes →](./docs/DEPLOY.md)**.
 >
-> **🎬 Watch the 90-second narrated walkthrough → [fin-proof-demo.mp4](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.mp4)** — also embedded on the landing page.
+> **🎬 Watch the 90-second narrated walkthrough → [fin-proof-demo.webp](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.webp)** — also embedded on the landing page.
 
 ---
 
