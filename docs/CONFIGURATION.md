@@ -47,7 +47,7 @@ These are read by the container/host, not by application logic:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `7860` | Port the server binds (`uvicorn ... --port ${PORT:-7860}`). Honored by Render/Cloud Run/Heroku; Hugging Face routes to `app_port: 7860`. |
+| `PORT` | `7860` | Port the server binds (`uvicorn ... --port ${PORT:-7860}`). Honored by Render/Cloud Run/Heroku automatically. |
 | `LEDGER_FRONTEND_DIR` | repo `frontend/` | Absolute path to the static dashboard the API serves (the [root Dockerfile](../Dockerfile) sets `/app/frontend`). Unset → resolved relative to the source tree for local `uvicorn`. |
 
 ---

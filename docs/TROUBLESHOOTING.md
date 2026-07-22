@@ -145,7 +145,7 @@ spinner.
 
 ---
 
-## Deployment (Hugging Face Space / Render / Cloud Run)
+## Deployment (Render / Cloud Run)
 
 ### First request after idle takes ~30–60 s
 **Cause:** free instances **sleep** when idle and cold-start on the next request.

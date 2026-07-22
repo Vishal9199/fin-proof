@@ -28,7 +28,7 @@ reliable (it never needs an API key to function).
 ### 4. Single-origin architecture
 Serving the API and the dashboard from one FastAPI process meant zero CORS
 configuration, one URL to share, and a Dockerfile that works identically on
-localhost, Render, and Hugging Face Spaces without environment changes.
+localhost and Render without environment changes.
 
 ---
 

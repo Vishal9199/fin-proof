@@ -1,19 +1,6 @@
----
-title: FinProof
-emoji: 🛡️
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
-short_description: A personal autonomous financial reconciliation engine
----
+<!-- MIT licensed -->
 
-<!-- The YAML block above configures the Hugging Face Space (Docker SDK). It is
-     ignored as content by GitHub (rendered as a small metadata table) and read
-     by Hugging Face to build/route the Space. Live demo boots to mock mode — no
-     API key needed. See docs/DEPLOY.md to publish your own. -->
+<!-- Live demo boots to mock mode — no API key needed. See docs/DEPLOY.md to deploy your own. -->
 
 <div align="center">
 
@@ -25,8 +12,8 @@ to post a number it can't prove.**
 
 _The LLM proposes; deterministic code disposes._
 
-[![Live Demo](https://img.shields.io/badge/live%20demo-online-brightgreen?logo=huggingface&logoColor=white)](https://huggingface.co/spaces/mrkumarmahatha/fin-proof)
-[![Demo video](https://img.shields.io/badge/demo-90s%20walkthrough-ff4438)](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.webp)
+[![Live Demo](https://img.shields.io/badge/live%20demo-online-brightgreen?logo=render&logoColor=white)](https://fin-proof.onrender.com)
+[![Demo video](https://img.shields.io/badge/demo-90s%20walkthrough-ff4438)](https://fin-proof.onrender.com/fin-proof-demo.webp)
 [![CI](https://github.com/Vishal9199/fin-proof/actions/workflows/ci.yml/badge.svg)](https://github.com/Vishal9199/fin-proof/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-80%20passing-brightgreen)
 ![Eval gates](https://img.shields.io/badge/eval%20gates-PASS-brightgreen)
@@ -35,7 +22,7 @@ _The LLM proposes; deterministic code disposes._
 ![Frontend](https://img.shields.io/badge/frontend-no%20build%20step-ff69b4)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-[**▶ Live Demo**](https://huggingface.co/spaces/mrkumarmahatha/fin-proof) · [**🎬 Demo video**](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.webp) · [Architecture](./docs/ARCHITECTURE.md) · [API reference](./docs/API.md) · [Quickstart](#-quickstart) · [How it works](#-how-it-works) · [Deploy](./docs/DEPLOY.md) · [Contributing](./docs/CONTRIBUTING.md)
+[**▶ Live Demo**](https://fin-proof.onrender.com) · [**🎬 Demo video**](https://fin-proof.onrender.com/fin-proof-demo.webp) · [Architecture](./docs/ARCHITECTURE.md) · [API reference](./docs/API.md) · [Quickstart](#-quickstart) · [How it works](#-how-it-works) · [Deploy](./docs/DEPLOY.md) · [Contributing](./docs/CONTRIBUTING.md)
 
 <br/>
 
@@ -45,12 +32,12 @@ _The LLM proposes; deterministic code disposes._
 
 </div>
 
-> **▶ Live demo → [huggingface.co/spaces/mrkumarmahatha/fin-proof](https://huggingface.co/spaces/mrkumarmahatha/fin-proof)**
+> **▶ Live demo → [fin-proof.onrender.com](https://fin-proof.onrender.com)**
 > The app boots in deterministic **mock mode** — no API key, no network, no
 > billing — so the full reconcile pipeline runs in your browser the moment it
-> loads. Want your own? **[Deploy a free Space in ~5 minutes →](./docs/DEPLOY.md)**.
+> loads. Want your own? **[Deploy your own instance →](./docs/DEPLOY.md)**.
 >
-> **🎬 Watch the 90-second narrated walkthrough → [fin-proof-demo.webp](https://mrkumarmahatha-fin-proof.hf.space/fin-proof-demo.webp)** — also embedded on the landing page.
+> **🎬 Watch the 90-second narrated walkthrough → [fin-proof-demo.webp](https://fin-proof.onrender.com/fin-proof-demo.webp)** — also embedded on the landing page.
 
 ---
 
@@ -96,7 +83,7 @@ what real-world agentic AI looks like when it touches money:
 | Capability | Where it lives |
 |---|---|
 | **AgentOps & observability** — monitor agent behavior, evaluate outputs, guard against bad ones | Every node emits a traced span (latency · tokens · USD · faithfulness), streamed live to the AgentOps panel and optionally to Langfuse. A **gated eval scorecard** turns a quality regression into a red build. → [ARCHITECTURE §8](./docs/ARCHITECTURE.md#8-failure-modes--hardening-agentops--guardrails) |
-| **Cloud-native, not `localhost`** — a deployable system | One container serves API + dashboard; ships to a free **Hugging Face Space** in ~5 min, with the AWS production topology drawn out. → [DEPLOY.md](./docs/DEPLOY.md) · [ARCHITECTURE §6](./docs/ARCHITECTURE.md#6-scale-considerations) |
+| **Cloud-native, not `localhost`** — a deployable system | One container serves API + dashboard; deployed live on **Render**, with the AWS production topology drawn out. → [DEPLOY.md](./docs/DEPLOY.md) · [ARCHITECTURE §6](./docs/ARCHITECTURE.md#6-scale-considerations) |
 | **Reliable AI ↔ structured-data integration** | A **Pandera schema-drift firewall** quarantines (and self-heals) malformed bank CSVs instead of corrupting the ledger; one canonical Pydantic contract is the only thing the engine sees. → [ARCHITECTURE §5](./docs/ARCHITECTURE.md#5-the-contract-canonical-data-model) |
 | **"Think in systems, not tasks" · end-to-end ownership** | A LangGraph state machine where every transition is a *guard*, 8 named failure modes each with a coded guardrail, and a documented roadmap. → [ARCHITECTURE §3](./docs/ARCHITECTURE.md#3-the-reconciliation-state-machine) |
 
@@ -110,7 +97,7 @@ what real-world agentic AI looks like when it touches money:
 | **Tests / evals** | `80` passing · `5` gated eval metrics (safety gate = quarantine recall ≥ 1.0) |
 | **AI UX** | AI Quarantine Advisor (inline resolution) · AI Ledger Chat (query chips + CSS bar charts) |
 | **Run anywhere** | Boots to mock mode: no API key, no network, deterministic every time |
-| **Deploy** | One image, one origin → free Hugging Face Space (Render / Cloud Run ready) |
+| **Deploy** | One image, one origin → deployed on Render (Cloud Run ready) |
 
 ## 🏗️ How it works
 
@@ -161,7 +148,7 @@ uvicorn app.main:app --port 8000
 - Dashboard → http://localhost:8000/app.html  (or click **Launch the Dashboard**)
 - API + interactive docs → http://localhost:8000/docs
 - Sample pile to drag in → [`sample_data/`](./sample_data)
-- **Deploy your own free live demo → [DEPLOY.md](./docs/DEPLOY.md)** (Hugging Face Space)
+- **Deploy your own live demo → [DEPLOY.md](./docs/DEPLOY.md)** (Render / Cloud Run)
 
 ```bash
 # Prove correctness without a server — deterministic, no API key:
@@ -193,7 +180,7 @@ python -m scripts.run_local    # offline terminal demo of the full pipeline
 | **[REFLECTION.md](./docs/REFLECTION.md)** | Reviewers | What worked well, what I'd do differently, known limitations, roadmap |
 | **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | Tech Lead reviewers | Diagrams, the state machine, scale math, 8 failure modes + guardrails, evals, trade-offs, rejected alternatives |
 | **[API.md](./docs/API.md)** | Integrators | Every REST endpoint, the SSE event protocol, the runtime control plane, `curl` examples |
-| **[DEPLOY.md](./docs/DEPLOY.md)** | Operators | Ship a free live demo to a Hugging Face Space in ~5 min (Render / Cloud Run too) |
+| **[DEPLOY.md](./docs/DEPLOY.md)** | Operators | Deploy a live demo to Render or Cloud Run |
 | **[CONTRIBUTING.md](./docs/CONTRIBUTING.md)** | Engineers | Dev setup, the test/eval workflow, and **adding a model provider in one method** |
 | **[CONFIGURATION.md](./docs/CONFIGURATION.md)** | Operators | Every setting — ops env vars vs. dashboard-driven model config — with defaults |
 | **[TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)** | Everyone | Symptom → cause → fix for the real issues (venv, live providers, uploads, deploy) |
@@ -210,7 +197,7 @@ fin-proof/
 │   ├── REFLECTION.md          # what worked, what to improve, known limitations
 │   ├── ARCHITECTURE.md        # system design, diagrams, scale, trade-offs, failure modes
 │   ├── API.md                 # REST + SSE reference, control-plane flow, curl examples
-│   ├── DEPLOY.md              # free live demo (Hugging Face Space) + AWS path
+│   ├── DEPLOY.md              # live demo deployment (Render) + AWS path
 │   ├── CONTRIBUTING.md        # dev workflow + "add a provider in one method"
 │   ├── CONFIGURATION.md       # every setting: ops env vars vs dashboard model config
 │   ├── TROUBLESHOOTING.md     # symptom → cause → fix for the real issues

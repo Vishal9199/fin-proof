@@ -12,7 +12,7 @@ host). Interactive OpenAPI docs are always available at **`/docs`**, and the raw
 schema at **`/openapi.json`**.
 
 - **Base URL (local):** `http://localhost:8000`
-- **Base URL (deployed):** the site's own origin — your instance will be live at `https://mrkumarmahatha-fin-proof.hf.space`
+- **Base URL (deployed):** the site's own origin — live at `https://fin-proof.onrender.com`
 - **Content types:** `application/json` everywhere except `POST /reconcile` (`multipart/form-data`).
 
 ---
