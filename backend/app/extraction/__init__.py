@@ -32,7 +32,15 @@ def classify(name: str) -> tuple[SourceType, str]:
     which the vision model can re-label once it has actually read the pixels."""
     lower = name.lower()
     if lower.endswith(".csv"):
+        if "corporate" in lower or "feed" in lower:
+            return "bank_feed", "csv-worker"
         return "bank_csv", "csv-worker"
+    if "purchase_order" in lower or "po_" in lower:
+        return "purchase_order", "vision-worker"
+    if "goods_receipt" in lower or "grn" in lower:
+        return "goods_receipt", "vision-worker"
+    if "tax_invoice" in lower or "inv_" in lower:
+        return "tax_invoice", "vision-worker"
     if lower.startswith("upi") or "upi" in lower:
         return "upi_screenshot", "vision-worker"
     return "receipt", "vision-worker"

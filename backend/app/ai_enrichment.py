@@ -206,10 +206,15 @@ async def answer_ledger_query(
     rt = get_runtime()
 
     def _txn_lines(txns: list["Transaction"]) -> str:
-        return "\n".join(
-            f"  - {t.normalized_merchant or t.merchant} | ₹{t.amount} | {t.txn_date} | {t.category or 'Other'}"
-            for t in txns
-        ) or "  (none)"
+        items = []
+        for t in txns:
+            line = f"  - {t.normalized_merchant or t.merchant} | ₹{t.amount} | {t.txn_date} | {t.category or 'Other'}"
+            if t.reference_no:
+                line += f" | Ref: {t.reference_no}"
+            if t.discrepancy and t.discrepancy.get("what"):
+                line += f" | Discrepancy: {t.discrepancy['what']}"
+            items.append(line)
+        return "\n".join(items) or "  (none)"
 
     ledger_ctx = (
         f"POSTED ({len(posted)} transactions):\n{_txn_lines(posted)}\n\n"
@@ -219,6 +224,19 @@ async def answer_ledger_query(
     if rt.mock_mode:
         q = question.lower()
         total = sum(float(t.amount) for t in posted)
+        
+        # Enterprise 3-way matching query
+        if "nova" in q or "8841" in q or "3-way" in q or "three way" in q or "grn" in q:
+            return {
+                "answer": (
+                    "Enterprise 3-Way Match Audit on PO-8841:\n"
+                    "• Approved PO Value: ₹54,87,000.00 (50 Units)\n"
+                    "• Warehouse GRN-0320: 48 Units accepted, 2 short-shipped (GRN Value ₹52,86,400.00)\n"
+                    "• Vendor Invoice INV-992: Billed for ₹54,87,000.00 (Full 50 units)\n"
+                    "• Corporate Bank Feed: ₹52,86,460.00 settled reflecting 48 received units + 2% prompt discount.\n"
+                    "Status: Isolated in Quarantine Lane. Review variance diff or apply Shortage Debit Note (₹2,00,600.00)."
+                )
+            }
         
         # Specific categories first
         if "food" in q or "dining" in q:
@@ -336,11 +354,21 @@ async def generate_quarantine_resolution_suggestion(
         m = txn.merchant.lower()
         if "brew" in m or "brew & co" in m:
             return {
-                "explanation": "Amount mismatch between Brew & Co receipt (₹450.00) and bank statement (₹540.00). This is typically caused by an unprinted tips, service charges, or local taxes.",
+                "explanation": "Amount mismatch between Brew & Co receipt (₹450.00) and bank statement (₹540.00). This is typically caused by unprinted tips, service charges, or local taxes.",
                 "actions": [
                     {"label": "Use Statement Amount (₹540.00)", "action": "override", "amount": 540.00, "merchant": "Brew & Co", "category": "Food & Dining"},
                     {"label": "Use Receipt Amount (₹450.00)", "action": "override", "amount": 450.00, "merchant": "Brew & Co", "category": "Food & Dining"},
+                    {"label": "Split ₹90.00 as Gratuity / Service Fee", "action": "split_fee", "amount": 450.00, "fee_amount": 90.00, "fee_label": "Service Fee / Gratuity"},
                     {"label": "Dismiss Transaction", "action": "reject"}
+                ]
+            }
+        elif "nova" in m or "hardware" in m or "8841" in m:
+            return {
+                "explanation": "3-Way Match Discrepancy on PO-8841: PO approved 50 units (₹54,87,000), but warehouse GRN-0320 received 48 units (2 short-shipped). Vendor Invoice INV-992 billed for 50 units. Bank settlement feed cleared ₹52,86,460 reflecting 48 received units + 2% prompt discount.",
+                "actions": [
+                    {"label": "Approve Cleared Amount (₹52,86,460.00)", "action": "override", "amount": 5286460.00, "merchant": "Nova Hardware Solutions Pvt Ltd", "category": "IT Equipment"},
+                    {"label": "Split Difference as Shortage Debit Note (₹2,00,600.00)", "action": "split_fee", "amount": 5286460.00, "fee_amount": 200600.00, "fee_label": "Vendor Shortage Debit Note"},
+                    {"label": "Hold Payment / Request Revised Invoice", "action": "reject"}
                 ]
             }
         elif "zest" in m or "cafe" in m:

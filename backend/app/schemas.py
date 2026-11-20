@@ -18,7 +18,10 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-SourceType = Literal["receipt", "bank_csv", "upi_screenshot", "bank_pdf"]
+SourceType = Literal[
+    "receipt", "bank_csv", "upi_screenshot", "bank_pdf",
+    "purchase_order", "goods_receipt", "tax_invoice", "bank_feed"
+]
 
 
 class TxnState(str, Enum):
@@ -32,7 +35,7 @@ class TxnState(str, Enum):
 
 class FieldConfidence(BaseModel):
     value: float = Field(ge=0.0, le=1.0)
-    method: str  # "self_consistency" | "schema" | "ocr_agreement" | "mock"
+    method: str  # "self_consistency" | "schema" | "ocr_agreement" | "mock" | "deterministic_rule"
 
 
 class Transaction(BaseModel):
@@ -49,6 +52,9 @@ class Transaction(BaseModel):
     quarantine_reason: Optional[str] = None
     category: Optional[str] = None        # e.g. "Food & Dining", "Transport"
     normalized_merchant: Optional[str] = None  # cleaned-up display name
+    reference_no: Optional[str] = None    # e.g. PO-8841, INV-992, UTR reference
+    discrepancy: Optional[dict] = None    # Structured {what, where, how_to_resolve, delta, variance_pct}
+    audit_hash: Optional[str] = None      # Cryptographic SHA-256 seal for tamper-evidence
 
     @field_validator("amount")
     @classmethod
@@ -82,15 +88,19 @@ class ExtractionResult(BaseModel):
     model: str = "mock"
     faithfulness: float = 1.0
     error: Optional[str] = None
+    agent_type: Literal["deterministic", "non_deterministic_llm"] = "deterministic"
+    proof_method: str = "Decimal & Schema Contract"
 
 
 class MatchLink(BaseModel):
     """A relationship the reconciliation engine found between transactions."""
 
-    kind: Literal["link", "duplicate", "anomaly"]
+    kind: Literal["link", "duplicate", "anomaly", "3way_match", "quantity_discrepancy"]
     txn_ids: list[str]
     score: float
     detail: str
+    variance_amount: Optional[Decimal] = None
+    variance_percent: Optional[float] = None
 
 
 class RunResult(BaseModel):
@@ -103,3 +113,5 @@ class RunResult(BaseModel):
     duration_ms: int = 0
     narrative: Optional[str] = None                    # AI-generated summary paragraph
     categories_summary: dict[str, float] = Field(default_factory=dict)  # {category: total_amount}
+    audit_seal: Optional[str] = None                   # SHA-256 seal of the posted ledger
+    workspace_mode: str = "general"                    # active reconciliation profile

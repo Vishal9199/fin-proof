@@ -237,15 +237,17 @@ async def _finalize(
         run_id, span=f"extract:{name}", model=model, latency_ms=latency_ms,
         tokens_in=tokens_in, tokens_out=tokens_out, faithfulness=1.0, extra=extra,
     )
+    is_deterministic = model in ("mock", "deterministic")
+    pm = "pdf_text_layer" if kind == "pdf-text" else ("deterministic_mock" if is_deterministic else "vision_visual_ocr")
     return [
         ExtractionResult(
             doc_name=name, source_type=t.source_type, worker="pdf-worker",
             transaction=t, latency_ms=latency_ms, model=model,
-            # Whole-document token usage rides the first row only, so any
-            # aggregation over results never double-counts the model call.
             tokens_in=tokens_in if i == 0 else 0,
             tokens_out=tokens_out if i == 0 else 0,
             faithfulness=score_faithfulness(t), error=error,
+            agent_type="deterministic" if is_deterministic else "non_deterministic_llm",
+            proof_method=pm,
         )
         for i, t in enumerate(txns)
     ]

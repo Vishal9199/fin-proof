@@ -32,6 +32,38 @@ _staged:  "OrderedDict[str, list[UploadedDoc]]" = OrderedDict()
 _results: "OrderedDict[str, RunResult]"          = OrderedDict()
 _status:  "OrderedDict[str, dict]"               = OrderedDict()
 
+import tempfile
+
+_CACHE_DIR = Path(tempfile.gettempdir()) / "finproof_run_cache"
+_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _save_run_to_disk(run_id: str, result: RunResult) -> None:
+    try:
+        p = _CACHE_DIR / f"{run_id}.json"
+        p.write_text(result.model_dump_json(), encoding="utf-8")
+    except Exception as e:
+        log.warning("failed to persist run %s to disk: %s", run_id, e)
+
+
+def _load_run_from_disk(run_id: str) -> RunResult | None:
+    try:
+        p = _CACHE_DIR / f"{run_id}.json"
+        if p.is_file():
+            res = RunResult.model_validate_json(p.read_text(encoding="utf-8"))
+            _results[run_id] = res
+            return res
+    except Exception as e:
+        log.warning("failed to load run %s from disk: %s", run_id, e)
+    return None
+
+
+def get_cached_result(run_id: str) -> RunResult | None:
+    res = _results.get(run_id)
+    if res is not None:
+        return res
+    return _load_run_from_disk(run_id)
+
 
 def _remember(store: OrderedDict, key: str, value) -> None:
     store[key] = value
@@ -216,6 +248,8 @@ async def process_run(run_id: str, docs: list[UploadedDoc]) -> None:
                 "faithfulness": round(sum(r.faithfulness for r in results) / len(results), 3) if results else 0.0,
                 "count": len(results),
                 "ok": any(r.transaction is not None for r in results),
+                "agent_type": getattr(results[0], "agent_type", "deterministic") if results else "deterministic",
+                "proof_method": getattr(results[0], "proof_method", "deterministic_rules") if results else "deterministic_rules",
             })
             return results
 
@@ -224,11 +258,13 @@ async def process_run(run_id: str, docs: list[UploadedDoc]) -> None:
         result = await run_reconciliation(run_id, extractions, rt.match_threshold)
         result.duration_ms = int((time.perf_counter() - t0) * 1000)
         _remember(_results, run_id, result)
+        _save_run_to_disk(run_id, result)
         _remember(_status, run_id, {"state": "completed", "documents": result.documents})
         await bus.publish(run_id, "run.completed", {
             "posted": len(result.posted), "quarantined": len(result.quarantined),
             "links": len(result.links), "total_posted_amount": str(result.total_posted_amount),
             "documents": result.documents, "duration_ms": result.duration_ms,
+            "audit_seal": result.audit_seal,
         })
         log.info("run %s done · %d posted %d quarantined %d links (%dms)",
                  run_id, len(result.posted), len(result.quarantined), len(result.links), result.duration_ms)
@@ -267,7 +303,7 @@ async def get_status(run_id: str) -> dict:
 
 @app.get("/runs/{run_id}")
 async def get_run(run_id: str) -> RunResult:
-    result = _results.get(run_id)
+    result = get_cached_result(run_id)
     if result is None:
         status = _status.get(run_id)
         if status and status.get("state") in ("queued", "running"):
@@ -292,13 +328,10 @@ async def ledger_query(body: QueryRequest) -> dict:
     if run_id is None:
         # Use the most recent completed run
         run_id = next((k for k in reversed(list(_results.keys()))), None)
-    if run_id is None:
-        raise HTTPException(404, "No completed runs found. Run a reconciliation first.")
-    result = _results.get(run_id)
+    result = get_cached_result(run_id) if run_id else None
     if result is None:
-        raise HTTPException(404, f"Run '{run_id}' not found or not yet complete.")
+        raise HTTPException(404, "No completed runs found. Run a reconciliation first.")
     result_data = await answer_ledger_query(body.question, result.posted, result.quarantined)
-    # answer_ledger_query returns {"answer": "...", "chart": {...}}  — spread it directly
     return {"run_id": run_id, "question": body.question, **result_data}
 
 
@@ -306,12 +339,18 @@ async def ledger_query(body: QueryRequest) -> dict:
 async def get_quarantine_suggestion(run_id: str, txn_id: str) -> dict:
     """Propose AI-assisted resolution options for a quarantined transaction."""
     from .ai_enrichment import generate_quarantine_resolution_suggestion
-    result = _results.get(run_id)
+    result = get_cached_result(run_id)
+    if result is None:
+        latest_key = next((k for k in reversed(list(_results.keys()))), None)
+        if latest_key:
+            result = get_cached_result(latest_key)
     if result is None:
         raise HTTPException(404, "Run not found.")
     
     # Find transaction in quarantined list
     txn = next((t for t in result.quarantined if t.id == txn_id), None)
+    if txn is None:
+        txn = next((t for t in result.quarantined if txn_id in t.id or t.id in txn_id), None)
     if txn is None:
         raise HTTPException(404, "Transaction not found in quarantine.")
         
@@ -320,26 +359,35 @@ async def get_quarantine_suggestion(run_id: str, txn_id: str) -> dict:
 
 
 class ResolveRequest(BaseModel):
-    action: str  # "override" | "reject"
+    action: str  # "override" | "reject" | "split_fee" | "debit_note"
     amount: float | None = None
     merchant: str | None = None
     category: str | None = None
+    fee_amount: float | None = None
+    fee_label: str | None = None
 
 
 @app.post("/runs/{run_id}/quarantine/{txn_id}/resolve")
 async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest) -> dict:
-    """Resolve a quarantined item by overriding its fields or dismissing it."""
+    """Resolve a quarantined item by overriding its fields, splitting fees, or dismissing it."""
     from decimal import Decimal
-    result = _results.get(run_id)
+    result = get_cached_result(run_id)
+    if result is None:
+        latest_key = next((k for k in reversed(list(_results.keys()))), None)
+        if latest_key:
+            result = get_cached_result(latest_key)
     if result is None:
         raise HTTPException(404, "Run not found.")
         
     # Find transaction in quarantined list
     txn_idx = next((i for i, t in enumerate(result.quarantined) if t.id == txn_id), None)
     if txn_idx is None:
+        txn_idx = next((i for i, t in enumerate(result.quarantined) if txn_id in t.id or t.id in txn_id), None)
+    if txn_idx is None:
         raise HTTPException(404, "Transaction not found in quarantine.")
         
     txn = result.quarantined[txn_idx]
+    fee_txn = None
     
     if body.action == "override":
         # Modify transaction fields
@@ -351,10 +399,41 @@ async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest
         if body.category is not None:
             txn.category = body.category
             
-        txn.state = "POSTED"
+        txn.state = TxnState.POSTED
         txn.quarantine_reason = None
         
         # Remove from quarantined, add to posted
+        result.quarantined.pop(txn_idx)
+        result.posted.append(txn)
+
+    elif body.action == "split_fee":
+        if body.amount is not None:
+            txn.amount = Decimal(str(body.amount))
+        txn.state = TxnState.POSTED
+        txn.quarantine_reason = None
+        result.quarantined.pop(txn_idx)
+        result.posted.append(txn)
+
+        fee_amt = Decimal(str(body.fee_amount)) if body.fee_amount else Decimal("0.00")
+        if fee_amt > Decimal("0.00"):
+            fee_txn = Transaction(
+                id=f"txn_{uuid.uuid4().hex[:8]}",
+                source_doc=txn.source_doc,
+                source_type=txn.source_type,
+                merchant=f"{txn.merchant} ({body.fee_label or 'Service Fee / Gratuity'})",
+                amount=fee_amt,
+                txn_date=txn.txn_date,
+                state=TxnState.POSTED,
+                category="Bank & Service Fees",
+                evidence=[f"System adjusting ledger entry for variance: ₹{fee_amt}"],
+            )
+            result.posted.append(fee_txn)
+
+    elif body.action == "debit_note":
+        if body.amount is not None:
+            txn.amount = Decimal(str(body.amount))
+        txn.state = TxnState.POSTED
+        txn.quarantine_reason = None
         result.quarantined.pop(txn_idx)
         result.posted.append(txn)
         
@@ -369,6 +448,8 @@ async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest
     from .ai_enrichment import build_categories_summary
     result.total_posted_amount = sum((t.amount for t in result.posted), Decimal("0"))
     result.categories_summary = build_categories_summary(result.posted)
+    _remember(_results, run_id, result)
+    _save_run_to_disk(run_id, result)
     
     return {
         "ok": True,
@@ -376,10 +457,12 @@ async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest
         "posted_count": len(result.posted),
         "quarantined_count": len(result.quarantined),
         "total_posted_amount": str(result.total_posted_amount),
+        "resolved_txn": txn.model_dump(mode="json") if body.action != "reject" else None,
+        "balancing_entry": fee_txn.model_dump(mode="json") if fee_txn else None,
     }
 
 
-# ── Sample data (for the "Load sample data" dashboard button) ─────────────────
+# ── Sample data (for dashboard scenario buttons) ─────────────────────────────
 _SAMPLE_DATA_DIR = Path(
     os.getenv("FIN_PROOF_SAMPLE_DATA_DIR")
     or Path(__file__).resolve().parents[2] / "sample_data"
@@ -387,13 +470,27 @@ _SAMPLE_DATA_DIR = Path(
 
 
 @app.get("/sample-files")
-async def list_sample_files() -> dict:
+async def list_sample_files(preset: Optional[str] = None) -> dict:
     if not _SAMPLE_DATA_DIR.is_dir():
         return {"files": []}
-    return {"files": [
-        str(p.relative_to(_SAMPLE_DATA_DIR.parent))
-        for p in sorted(_SAMPLE_DATA_DIR.rglob("*"))
+    
+    all_files = [
+        p for p in sorted(_SAMPLE_DATA_DIR.rglob("*"))
         if p.is_file() and not p.name.startswith(".")
+    ]
+    
+    if preset == "enterprise":
+        selected = [p for p in all_files if "enterprise" in str(p)]
+    elif preset == "personal":
+        selected = [p for p in all_files if "enterprise" not in str(p) and "drifted" not in str(p)]
+    elif preset == "drift":
+        selected = [p for p in all_files if "drifted" in str(p)]
+    else:
+        selected = all_files
+
+    return {"files": [
+        str(p.relative_to(_SAMPLE_DATA_DIR.parent)).replace("\\", "/")
+        for p in selected
     ]}
 
 

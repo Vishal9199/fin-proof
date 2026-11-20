@@ -32,6 +32,18 @@
     </div>
   </header>
 
+  <!-- Industry Workspace Selector (Point 1: Who is this for?) -->
+  <div class="workspace-bar">
+    <div class="workspace-label">🏛️ WORKSPACE PROFILE:</div>
+    <div class="workspace-pills" id="workspace-pills">
+      <button type="button" class="ws-pill active" data-mode="enterprise_ap">🏢 Enterprise CFO · 3-Way AP</button>
+      <button type="button" class="ws-pill" data-mode="bank_recon">🏛️ Bank Recon & Settlement Desk</button>
+      <button type="button" class="ws-pill" data-mode="lending_underwrite">🔍 Lending Underwriting & Fraud</button>
+      <button type="button" class="ws-pill" data-mode="sme_personal">☕ Retail / SME Operations</button>
+    </div>
+    <div class="ws-status" id="ws-status-badge">Compliance: SOX 404 & GST Section 16(2)</div>
+  </div>
+
   <!-- Provider control plane: pick provider · paste key · choose models -->
   <div id="settings-overlay" class="modal-overlay hidden">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -80,12 +92,35 @@
     </div>
   </div>
 
+  <!-- Evidence & Variance Diff Modal (Point 2: Manual Intervention Inspector) -->
+  <div id="diff-modal-overlay" class="modal-overlay hidden">
+    <div class="modal diff-modal" role="dialog" aria-modal="true" aria-labelledby="diff-title">
+      <header class="modal-head">
+        <h2 id="diff-title">🔍 Visual Evidence & Variance Analysis</h2>
+        <button type="button" id="diff-modal-close" class="icon-btn" title="Close">✕</button>
+      </header>
+      <p class="modal-sub">
+        Institutional Human-in-the-Loop review: WHAT is mismatched, WHERE it is isolated, and HOW to resolve it.
+      </p>
+      <div id="diff-modal-body" class="diff-modal-body"></div>
+      <footer class="modal-foot">
+        <button type="button" id="diff-modal-dismiss" class="btn-ghost">Close</button>
+      </footer>
+    </div>
+  </div>
+
   <div id="error-banner" class="error-banner hidden"></div>
 
   <div id="dropzone" class="dropzone">
     <p>Drag your <strong>receipts, bank statements (CSV / PDF), and UPI screenshots (photos, scans, text)</strong> here — or click "Upload pile".</p>
     <p class="hint">No API key? Runs in deterministic mock mode. Try the files in <code>sample_data/</code>.</p>
-    <button type="button" id="load-sample-btn" class="sample-btn">⚡ Load sample data</button>
+    <div class="preset-group">
+      <span class="preset-label">1-Click Scenarios:</span>
+      <button type="button" class="preset-btn" data-preset="enterprise">🏢 Enterprise 3-Way AP (PO + GRN + Inv + Bank)</button>
+      <button type="button" class="preset-btn" data-preset="personal">☕ Retail / SME Pile</button>
+      <button type="button" class="preset-btn" data-preset="drift">⚠️ Schema-Drifted Bank CSV</button>
+      <button type="button" id="load-sample-btn" class="sample-btn">⚡ Load all</button>
+    </div>
     <ul id="file-list" class="file-list"></ul>
   </div>
 
@@ -142,6 +177,7 @@
   <section id="chat-panel" class="chat-panel hidden">
     <div class="chat-history" id="chat-history"></div>
     <div class="chat-chips" id="chat-chips">
+      <button type="button" class="chat-chip" data-query="Explain 3-way match audit on PO-8841">🏢 3-Way Match Audit</button>
       <button type="button" class="chat-chip" data-query="Show spending by category">📊 Category Breakdown</button>
       <button type="button" class="chat-chip" data-query="Total amount spent">💸 Total Spend</button>
       <button type="button" class="chat-chip" data-query="Are there any quarantined transactions?">⚠️ Show Flags</button>

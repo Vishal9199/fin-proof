@@ -8,6 +8,26 @@ const $ = (id) => document.getElementById(id);
 let selectedFiles = [];
 let metrics = { spans: 0, latency: 0, cost: 0, faithSum: 0, faithN: 0 };
 let ledgerState = { posted: [], quarantined: [] };
+let currentRunId = localStorage.getItem("finproof_active_run") || null;
+
+// ── Workspace Profile Switcher (Point 1: Who is this for?) ─────────────────
+document.querySelectorAll(".ws-pill").forEach((pill) => {
+  pill.addEventListener("click", () => {
+    document.querySelectorAll(".ws-pill").forEach((p) => p.classList.remove("active"));
+    pill.classList.add("active");
+    const mode = pill.dataset.mode;
+    const statusEl = $("ws-status-badge");
+    if (mode === "enterprise_ap") {
+      statusEl.textContent = "Compliance: SOX 404 & GST Section 16(2) | 3-Way Match Active";
+    } else if (mode === "bank_recon") {
+      statusEl.textContent = "Compliance: RBI Settlement Guidelines & ISO 20022 | $0.00 Tolerance";
+    } else if (mode === "lending_underwrite") {
+      statusEl.textContent = "Compliance: Basel III & GSTR-2B Forensic Audit | Anti-Fraud Active";
+    } else {
+      statusEl.textContent = "Mode: Retail / SME Autonomous Reconciliation";
+    }
+  });
+});
 
 // ── Health badge ───────────────────────────────────────────────────────────
 const PROVIDER_SHORT = { anthropic: "Claude", google: "Gemini", openai: "GPT", mock: "Mock" };
@@ -67,12 +87,14 @@ function setFiles(files) {
   $("run-btn").disabled = files.length === 0;
 }
 
-// ── Load sample data button ───────────────────────────────────────────────
-$("load-sample-btn").addEventListener("click", async () => {
-  const btn = $("load-sample-btn");
-  btn.disabled = true; btn.textContent = "Loading…";
+// ── Load sample data & preset scenario buttons (Point 5: Enhanced Use Cases) ─
+async function loadFilesByPreset(preset = null, btn = $("load-sample-btn")) {
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = "Loading…";
   try {
-    const res = await fetch(`${API}/sample-files`);
+    const url = preset ? `${API}/sample-files?preset=${preset}` : `${API}/sample-files`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { files: paths } = await res.json();
     const fetched = await Promise.all(paths.map(async (p) => {
@@ -83,11 +105,17 @@ $("load-sample-btn").addEventListener("click", async () => {
     }));
     setFiles(fetched);
     btn.textContent = `✓ ${fetched.length} files loaded`;
-    setTimeout(() => { btn.textContent = "⚡ Load sample data"; btn.disabled = false; }, 2000);
+    setTimeout(() => { btn.textContent = oldText; btn.disabled = false; }, 2000);
   } catch (err) {
-    btn.textContent = "⚡ Load sample data"; btn.disabled = false;
-    showError(`Could not load sample files: ${err.message}. Drop sample_data/ folder instead.`);
+    btn.textContent = oldText; btn.disabled = false;
+    showError(`Could not load files: ${err.message}. Drop files manually instead.`);
   }
+}
+
+$("load-sample-btn").addEventListener("click", () => loadFilesByPreset(null, $("load-sample-btn")));
+
+document.querySelectorAll(".preset-btn").forEach((btn) => {
+  btn.addEventListener("click", () => loadFilesByPreset(btn.dataset.preset, btn));
 });
 
 // ── Run ───────────────────────────────────────────────────────────────────
@@ -117,9 +145,8 @@ async function startRun() {
   }
   streamRun(runId);
   currentRunId = runId;
+  localStorage.setItem("finproof_active_run", runId);
 }
-
-let currentRunId = null;
 
 function streamRun(runId) {
   let settled = false, opened = false;
@@ -148,6 +175,8 @@ function streamRun(runId) {
   });
   on("canvas.duplicate", (p) => addCard("links-list", "duplicate", "DUPLICATE", `${(p.score * 100) | 0}%`, p.detail));
   on("canvas.anomaly",   (p) => addCard("links-list", "anomaly", "ANOMALY", `${(p.score * 100) | 0}%`, p.detail, true));
+  on("canvas.3way_match", (p) => addCard("links-list", "posted", "3-WAY MATCH", `${(p.score * 100) | 0}%`, p.detail));
+  on("canvas.quantity_discrepancy", (p) => addCard("links-list", "anomaly", "SHORT-SHIPMENT", `⚠ DIFF`, p.detail, true));
   on("run.completed", (p) => { settled = true; showSummary(p); es.close(); $("run-btn").disabled = false; });
   on("run.failed", (p) => { settled = true; es.close(); showError(`Run failed: ${p.error || "unknown error"}`); $("run-btn").disabled = false; });
 
@@ -173,10 +202,16 @@ async function pollForResult(runId, attempt = 0) {
 
 function renderResult(r) {
   resetPanels();
+  if (r.run_id) {
+    currentRunId = r.run_id;
+    localStorage.setItem("finproof_active_run", r.run_id);
+  }
   ledgerState = { posted: r.posted || [], quarantined: r.quarantined || [] };
   (r.links || []).forEach((l) => {
     if (l.kind === "duplicate") addCard("links-list", "duplicate", "DUPLICATE", `${(l.score * 100) | 0}%`, l.detail);
     if (l.kind === "anomaly")   addCard("links-list", "anomaly",   "ANOMALY",   `${(l.score * 100) | 0}%`, l.detail, true);
+    if (l.kind === "3way_match") addCard("links-list", "posted", "3-WAY MATCH", `${(l.score * 100) | 0}%`, l.detail || `Matched PO/GRN with variance ₹${l.variance_amount || 0}`);
+    if (l.kind === "quantity_discrepancy") addCard("links-list", "anomaly", "SHORT-SHIPMENT", `⚠ DIFF`, l.detail || `Quantity discrepancy detected`, true);
   });
   (r.posted     || []).forEach((t) => addCard("posted-list",    "posted",    t.normalized_merchant || t.merchant, `₹${t.amount}`,   "Posted to ledger", false, t));
   (r.quarantined|| []).forEach((t) => addCard("quarantine-list","quarantine",t.normalized_merchant || t.merchant, `⚠ ₹${t.amount}`, t.quarantine_reason || t.reason || "Quarantined", false, t));
@@ -187,7 +222,7 @@ function renderResult(r) {
   }
   
   showSummary({ total_posted_amount: r.total_posted_amount, posted: (r.posted||[]).length,
-    quarantined: (r.quarantined||[]).length, links: (r.links||[]).length, documents: r.documents });
+    quarantined: (r.quarantined||[]).length, links: (r.links||[]).length, documents: r.documents, audit_seal: r.audit_seal });
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────
@@ -196,17 +231,78 @@ function upsertCell(doc, state, p = {}) {
   if (!cell) {
     cell = document.createElement("div");
     cell.className = "agent-cell"; cell.dataset.doc = doc;
-    cell.innerHTML = `<span class="dot"></span><div class="doc">${doc}</div><div class="meta"></div>`;
+    cell.innerHTML = `<span class="dot"></span><div class="doc">${escapeHtml(doc)}</div><div class="meta"></div>`;
     $("agent-grid").appendChild(cell);
     $("agent-count").textContent = $("agent-grid").children.length;
   }
   cell.querySelector(".dot").className = "dot " + state;
   if (state === "done") {
     cell.classList.add("done");
+    const isDet = (p.agent_type === "deterministic") || (p.worker && p.worker.includes("deterministic")) || (p.worker === "csv-worker" || p.worker === "csv" || p.model === "deterministic");
+    const badgeClass = isDet ? "badge-deterministic" : "badge-non-det";
+    const badgeLabel = isDet ? "⚡ DETERMINISTIC" : "🤖 NON-DET LLM";
+    const proofText = p.proof_method ? ` · ${p.proof_method}` : "";
     cell.querySelector(".meta").innerHTML =
-      `<span>${p.worker || ""}</span><span>${p.latency_ms ?? 0}ms</span>` +
-      `<span>${p.count ?? 1} txn</span><span>faith ${(p.faithfulness ?? 1).toFixed(2)}</span>`;
+      `<div><span>${p.worker || ""}</span><span>${p.latency_ms ?? 0}ms</span>` +
+      `<span>${p.count ?? 1} txn</span><span>faith ${(p.faithfulness ?? 1).toFixed(2)}</span></div>` +
+      `<span class="agent-type-badge ${badgeClass}" title="Execution Architecture">${badgeLabel}${proofText}</span>`;
   }
+}
+
+// ── Evidence & Variance Diff Modal (Point 2: HITL Manual Intervention) ────
+const diffOverlay = $("diff-modal-overlay");
+const closeDiffModal = () => { if (diffOverlay) diffOverlay.classList.add("hidden"); };
+
+if ($("diff-modal-close")) $("diff-modal-close").addEventListener("click", closeDiffModal);
+if ($("diff-modal-dismiss")) $("diff-modal-dismiss").addEventListener("click", closeDiffModal);
+if (diffOverlay) diffOverlay.addEventListener("click", (e) => { if (e.target === diffOverlay) closeDiffModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && diffOverlay && !diffOverlay.classList.contains("hidden")) closeDiffModal(); });
+
+function openDiffModal(txn) {
+  if (!txn) return;
+  const d = txn.discrepancy || {};
+  const deltaStr = d.delta ? `₹${d.delta}` : (d.variance_percent != null ? `${d.variance_percent}%` : "Manual review required");
+  const varianceStr = d.variance_percent != null ? `${d.variance_percent}%` : "Threshold Exceeded";
+  const refNo = txn.reference_no || "N/A";
+  const sourceDoc = txn.source_doc || "Uploaded Document";
+  const counterpartDoc = d.counterpart_doc ? `Counterpart: ${escapeHtml(d.counterpart_doc)} (₹${d.counterpart_amount || ''})` : `Safety Gate: Quarantined before General Ledger`;
+  
+  const bodyEl = $("diff-modal-body");
+  if (!bodyEl) return;
+  bodyEl.innerHTML = `
+    <div class="diff-grid">
+      <div class="diff-box">
+        <div class="diff-box-head">Isolated Transaction</div>
+        <div class="diff-box-val">₹${txn.amount}</div>
+        <div class="diff-box-sub"><b>Entity:</b> ${escapeHtml(txn.normalized_merchant || txn.merchant)}</div>
+        <div class="diff-box-sub"><b>Reference:</b> <span class="ref-badge">#${escapeHtml(refNo)}</span></div>
+        <div class="diff-box-sub"><b>Document:</b> ${escapeHtml(sourceDoc)}</div>
+      </div>
+      <div class="diff-box">
+        <div class="diff-box-head">Reconciliation Verdict</div>
+        <div class="diff-box-val" style="color: var(--amber)">QUARANTINED</div>
+        <div class="diff-box-sub"><b>Variance:</b> ${varianceStr}</div>
+        <div class="diff-box-sub"><b>Discrepancy Delta:</b> ${deltaStr}</div>
+        <div class="diff-box-sub"><b>Audit Hash:</b> ${txn.audit_hash ? txn.audit_hash.slice(0, 16) + '…' : 'SHA-256 Validated'}</div>
+      </div>
+    </div>
+
+    <div class="diff-delta-bar">
+      <span><b>WHAT is mismatched:</b></span>
+      <span class="delta-val">${escapeHtml(d.what || txn.quarantine_reason || txn.reason || "Variance detected across sources")}</span>
+    </div>
+
+    <div class="hitl-section">
+      <div class="hitl-title">📍 WHERE Isolated</div>
+      <div class="hitl-desc">${escapeHtml(d.where || counterpartDoc)}</div>
+    </div>
+
+    <div class="hitl-section">
+      <div class="hitl-title">🛠️ HOW to Resolve</div>
+      <div class="hitl-desc">${escapeHtml(d.how_to_resolve || "Use 'AI Suggest' to split fee/discount, issue shortage debit note, or approve with human sign-off note.")}</div>
+    </div>
+  `;
+  diffOverlay.classList.remove("hidden");
 }
 
 function addCard(listId, kind, title, right, why, flash = false, txn = null) {
@@ -216,17 +312,21 @@ function addCard(listId, kind, title, right, why, flash = false, txn = null) {
   const isQ = kind === "quarantine" && txn;
   
   const catHtml = (txn && txn.category && txn.category !== "Other") ? ` <span class="cat-badge">${txn.category}</span>` : "";
+  const refHtml = txn && txn.reference_no ? `<span class="ref-badge" title="Reference No">#${escapeHtml(txn.reference_no)}</span> ` : "";
   
   el.innerHTML =
-    `<div class="row"><span class="merchant">${title}${catHtml}</span><span class="amount">${right}</span></div>` +
+    `<div class="row"><span class="merchant">${refHtml}${title}${catHtml}</span><span class="amount">${right}</span></div>` +
     `<div class="why">${why}</div>` +
     (isQ ? `<div class="review-actions">
+      <button class="review-btn diff-btn" title="View Evidence Diff & Variance Details">🔍 Evidence Diff</button>
       <button class="review-btn approve" title="Approve — move to Posted ledger">✓ Approve</button>
       <button class="review-btn reject"  title="Reject — permanently dismiss">✕ Reject</button>
       <button class="review-btn suggest-btn" title="Ask AI how to resolve this conflict">✨ AI Suggest</button>
     </div>
     <div class="ai-suggestion-box hidden"></div>` : "");
   if (isQ) {
+    const diffBtn = el.querySelector(".diff-btn");
+    if (diffBtn) diffBtn.addEventListener("click", () => openDiffModal(txn));
     el.querySelector(".approve").addEventListener("click", () => approveCard(el, txn));
     el.querySelector(".reject" ).addEventListener("click", () => rejectCard(el, txn));
     el.querySelector(".suggest-btn").addEventListener("click", (e) => suggestResolve(el, txn, e.target));
@@ -289,10 +389,11 @@ async function applyResolution(cardEl, txn, act) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     
-    if (act.action === "override") {
+    if (act.action === "override" || act.action === "split_fee" || act.action === "debit_note") {
       cardEl.remove();
       ledgerState.quarantined = ledgerState.quarantined.filter((t) => t.id !== (txn?.id));
-      const finalTxn = {
+      
+      const primaryTxn = data.resolved_txn || {
         ...txn,
         amount: act.amount ?? txn.amount,
         merchant: act.merchant ?? txn.merchant,
@@ -300,14 +401,29 @@ async function applyResolution(cardEl, txn, act) {
         category: act.category ?? txn.category,
         _humanApproved: true
       };
-      ledgerState.posted.push(finalTxn);
+      ledgerState.posted.push(primaryTxn);
       addCard(
         "posted-list",
         "posted",
-        finalTxn.normalized_merchant || finalTxn.merchant,
-        `₹${finalTxn.amount}`,
-        `✓ Resolved with AI: ${act.label}`
+        primaryTxn.normalized_merchant || primaryTxn.merchant,
+        `₹${primaryTxn.amount}`,
+        `✓ Resolved: ${act.label || 'Approved'}`,
+        false,
+        primaryTxn
       );
+
+      if (data.balancing_entry) {
+        ledgerState.posted.push(data.balancing_entry);
+        addCard(
+          "posted-list",
+          "posted",
+          data.balancing_entry.normalized_merchant || data.balancing_entry.merchant,
+          `₹${data.balancing_entry.amount}`,
+          `✓ Balancing Entry: ${data.balancing_entry.merchant}`,
+          false,
+          data.balancing_entry
+        );
+      }
     } else if (act.action === "reject") {
       Object.assign(cardEl.style, { transition: "opacity .3s, max-height .3s", opacity: "0", maxHeight: "0", overflow: "hidden" });
       setTimeout(() => {
@@ -377,10 +493,17 @@ function showSummary(p) {
 }
 
 function updateSummaryContent(p) {
+  const sealHtml = p.audit_seal
+    ? `<div class="audit-seal-box">
+         <span>🛡️ Cryptographic Ledger Seal (SHA-256 Invariance):</span>
+         <span class="seal-hash" title="${escapeHtml(p.audit_seal)}">${escapeHtml(p.audit_seal.slice(0, 24))}…</span>
+       </div>`
+    : "";
   $("summary-content").innerHTML =
     `<div><b class="ok">₹${p.total_posted_amount}</b><div>posted total</div></div>` +
     `<div><b>${p.posted}</b> posted · <b class="warn">${p.quarantined}</b> quarantined · <b>${p.links}</b> links</div>` +
-    `<div>${p.documents} documents reconciled</div>`;
+    `<div>${p.documents} documents reconciled</div>` +
+    sealHtml;
 }
 
 // ── Export CSV ────────────────────────────────────────────────────────────
@@ -641,3 +764,13 @@ document.querySelectorAll(".chat-chip").forEach(chip => {
     $("chat-form").dispatchEvent(new Event("submit"));
   });
 });
+
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

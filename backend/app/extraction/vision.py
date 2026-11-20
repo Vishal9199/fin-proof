@@ -92,6 +92,7 @@ async def _extract_text(
         amount=parsed["amount"],
         txn_date=parsed["txn_date"],
         state=TxnState.EXTRACTED,
+        reference_no=parsed.get("reference_no"),
         confidence={
             "amount": FieldConfidence(value=parsed["confidence"], method=parsed["method"]),
             "merchant": FieldConfidence(value=0.95, method="schema"),
@@ -194,8 +195,16 @@ async def _finish(
         run_id, span=f"extract:{name}", model=model, latency_ms=latency_ms,
         tokens_in=tokens_in, tokens_out=tokens_out, faithfulness=faithfulness, extra=extra,
     )
+    is_deterministic = model in ("mock", "deterministic")
+    pm = (
+        txn.confidence.get("amount").method
+        if (txn and txn.confidence and "amount" in txn.confidence)
+        else ("deterministic_regex" if is_deterministic else "vision_llm_multimodal")
+    )
     return ExtractionResult(
         doc_name=name, source_type=source_type, worker="vision-worker",
         transaction=txn, latency_ms=latency_ms, tokens_in=tokens_in,
         tokens_out=tokens_out, model=model, faithfulness=faithfulness, error=error,
+        agent_type="deterministic" if is_deterministic else "non_deterministic_llm",
+        proof_method=pm,
     )

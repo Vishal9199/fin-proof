@@ -120,6 +120,11 @@ async def extract_bank_csv(run_id: str, name: str, data: bytes) -> list[Extracti
         if i in failures:
             txns.append(_quarantine_row(name, rows[i], f"Value contract failed: {failures[i]}"))
             continue
+        ref_val = rows[i].get("Reference_No") or rows[i].get("reference_no") or rows[i].get("ref") or rows[i].get("ref_no")
+        if not ref_val:
+            import re
+            m = re.search(r"(?:PO|GRN|INV|REF|RTGS|NEFT)[-:\s#/]+([A-Z0-9\-_]+)", c["merchant"], re.I)
+            ref_val = m.group(1).strip() if m else None
         txns.append(
             Transaction(
                 id=f"txn_{uuid.uuid4().hex[:8]}",
@@ -135,6 +140,7 @@ async def extract_bank_csv(run_id: str, name: str, data: bytes) -> list[Extracti
                     "txn_date": FieldConfidence(value=header_conf, method="schema"),
                 },
                 evidence=[f"{name} · headers remapped {mapping}"],
+                reference_no=ref_val,
             )
         )
     return await _finalize(run_id, name, txns, started, drifted, header_conf)
@@ -184,6 +190,8 @@ async def _finalize(run_id, name, txns, started, drifted, header_conf) -> list[E
             doc_name=name, source_type="bank_csv", worker="csv-worker",
             transaction=t, latency_ms=latency_ms, model="deterministic",
             faithfulness=score_faithfulness(t),
+            agent_type="deterministic",
+            proof_method="pandera_schema_and_rapidfuzz",
         )
         for t in txns
     ]

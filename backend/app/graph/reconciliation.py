@@ -57,7 +57,7 @@ async def node_reconcile(state: GraphState) -> GraphState:
     for link in links:
         await bus.publish(run_id, f"canvas.{link.kind}",
                           {"txn_ids": link.txn_ids, "score": link.score, "detail": link.detail})
-        if link.kind == "anomaly":
+        if link.kind in ("anomaly", "quantity_discrepancy"):
             anomaly_ids.update(link.txn_ids)
         elif link.kind == "duplicate":
             duplicate_drop_ids.add(link.txn_ids[1])
@@ -65,11 +65,16 @@ async def node_reconcile(state: GraphState) -> GraphState:
     for txn in verified:
         if txn.id in anomaly_ids:
             txn.state = TxnState.QUARANTINE
-            txn.quarantine_reason = "Cross-source amount conflict — needs human review."
+            if not txn.quarantine_reason:
+                if txn.discrepancy and txn.discrepancy.get("what"):
+                    txn.quarantine_reason = f"{txn.discrepancy['what']} — isolated for human review."
+                else:
+                    txn.quarantine_reason = "Cross-source amount conflict — needs human review."
             state["quarantined"].append(txn)
             await bus.publish(run_id, "txn.quarantined",
                               {"id": txn.id, "merchant": txn.merchant, "amount": str(txn.amount),
-                               "reason": txn.quarantine_reason})
+                               "reason": txn.quarantine_reason, "discrepancy": txn.discrepancy,
+                               "reference_no": txn.reference_no, "source_doc": txn.source_doc})
 
     state["transactions"] = [
         t for t in verified if t.id not in anomaly_ids and t.id not in duplicate_drop_ids
@@ -79,14 +84,22 @@ async def node_reconcile(state: GraphState) -> GraphState:
 
 
 async def node_post(state: GraphState) -> GraphState:
+    import hashlib
     run_id = state["run_id"]
     posted: list[Transaction] = []
+    hasher = hashlib.sha256()
     for txn in state.get("transactions", []):
         txn.state = TxnState.POSTED
+        txn_seal = hashlib.sha256(f"{txn.id}:{txn.merchant}:{txn.amount}:{txn.txn_date}".encode()).hexdigest()[:16]
+        txn.audit_hash = txn_seal
+        hasher.update(txn_seal.encode())
         posted.append(txn)
         await bus.publish(run_id, "txn.posted",
-                          {"id": txn.id, "merchant": txn.merchant, "amount": str(txn.amount)})
+                          {"id": txn.id, "merchant": txn.merchant, "amount": str(txn.amount),
+                           "audit_hash": txn.audit_hash, "reference_no": txn.reference_no,
+                           "source_doc": txn.source_doc})
     state["posted"] = posted
+    state["audit_seal"] = hasher.hexdigest()[:32]
     return state
 
 
@@ -182,4 +195,5 @@ async def run_reconciliation(run_id: str, extractions: list, match_threshold: fl
         documents=len({e.doc_name for e in extractions}),
         narrative=final.get("narrative"),
         categories_summary=final.get("categories_summary", {}),
+        audit_seal=final.get("audit_seal"),
     )

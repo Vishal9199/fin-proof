@@ -63,6 +63,8 @@ class Scorecard:
 
 async def evaluate(include_drift: bool = False) -> Scorecard:
     files = sorted(p for p in SAMPLE_DIR.rglob("*") if p.is_file())
+    # Keep baseline golden set focused on the core 6 evaluation documents
+    files = [p for p in files if "enterprise" not in str(p)]
     if not include_drift:
         files = [p for p in files if "drifted" not in p.name]
 
