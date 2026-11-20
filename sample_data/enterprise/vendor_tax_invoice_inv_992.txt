@@ -1,0 +1,18 @@
+TAX INVOICE: INV-2026-992
+Supplier: Nova Hardware Solutions Pvt Ltd.
+GSTIN: 27AABCN1234F1Z5
+Billed To: Acme Global Technologies Ltd. (GSTIN: 27AABCA9876K1Z2)
+Invoice Date: 2026-05-24
+Reference PO: PO-8841-TECH
+
+BILLED ITEMS:
+1. Enterprise UltraBook i7 (SKU: UB-772)
+   Billed Quantity: 50 units @ ₹85,000.00 = ₹42,50,000.00  <-- [DISCREPANCY: GRN was 48 units]
+2. USB-C Universal Docking Station (SKU: DK-104)
+   Billed Quantity: 50 units @ ₹8,000.00 = ₹4,00,000.00
+
+Subtotal: ₹46,50,000.00
+IGST (18%): ₹8,37,000.00
+TOTAL INVOICE AMOUNT: ₹54,87,000.00
+Bank Settlement Details: HDFC Bank Current A/C 50200012345678, IFSC: HDFC0000123
+

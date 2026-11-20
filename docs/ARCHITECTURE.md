@@ -57,6 +57,17 @@ merging **double-counts**. The system must:
 - **R5 — Be observable:** every decision is traced, scored, timed, costed (AgentOps).
 - **R6 — Be operable:** containerized, horizontally scalable, degrades gracefully.
 
+### 1.1 Target Audience: Who Is This For?
+
+While basic expense trackers focus on individual receipts, FinProof's architecture targets high-stakes institutional finance where unreconciled breaks cause financial loss, audit failures, and regulatory fines:
+
+| Sector | Target Personas | Operational Problem Solved |
+|---|---|---|
+| **Commercial & Retail Banking** | Settlement & Recon Desk, Nostro/Vostro Reconcilers, Clearing Ops | Resolves millions of daily breaks between Core Banking Systems (CBS), payment switches (UPI / SWIFT MT940), and merchant batch settlements. |
+| **Commercial Lending & Risk** | Credit Underwriters, Risk Analysts, Forensic Auditors | Cross-reconciles applicant bank PDF statements against GSTR-2A/3B returns and vendor invoices to detect fabricated balances, inflation, and round-tripping. |
+| **Enterprise CFO Suite** | Accounts Payable (AP) Lead, Financial Controller, SOX Auditors | Automates 3-Way & 4-Way Matching: Purchase Orders (PO) vs. Delivery Challans / Goods Received Notes (GRN) vs. Vendor Tax Invoices vs. Bank Clearing Feeds. |
+| **FinTechs & Payment Gateways** | Merchant Settlement Ops, Dispute & Chargeback Specialists | Reconciles merchant POS terminal logs, mobile UPI transaction screenshots, and bank settlement notifications. |
+
 ### Non-goals
 Full accounting/double-entry bookkeeping, multi-currency FX, and bank API
 integrations are explicitly out of scope for v1 — they are additive and would
@@ -107,6 +118,30 @@ self-verification gate → fan-in to canonical store → reconciliation → stat
 machine routes each transaction to POSTED or QUARANTINE → every hop emitted as a
 trace event to the dashboard.
 
+### 2.1 Deterministic vs. Non-Deterministic Agents
+
+Financial ledgers demand absolute mathematical and statutory reproducibility. LLMs cannot be trusted with raw arithmetic or un-audited ledger commits, yet rigid deterministic parsers collapse when confronted with real-world document variations, distorted receipts, or schema drift.
+
+FinProof solves this via strict separation of concerns:
+> **"The LLM proposes; deterministic code disposes."**
+
+| Characteristic | Deterministic Layer | Non-Deterministic (Agentic LLM) Layer |
+|---|---|---|
+| **Underlying Engine** | Algorithms, schemas, finite state machines | Multi-modal Foundation Models (Claude, Gemini, GPT) |
+| **Output Property** | 100% reproducible, 0 variance, exact paise/cents | Probabilistic, semantic reasoning, vision perception |
+| **Responsibilities** | • Pandera Schema Contracts (type, non-null, date ranges)<br/>• Canonical Pydantic `Decimal` data model<br/>• LangGraph State Machine conditional guards<br/>• RapidFuzz string distance & matching thresholds<br/>• Pre-egress regex PII redaction<br/>• Ledger invariance (rejection of unproven numbers) | • Multi-modal Vision Worker (reading distorted receipts & UPI)<br/>• Born-digital vs scanned PDF layout analysis<br/>• Semantic Merchant Normalizer (e.g. `AMZN BLR` → Amazon)<br/>• Dual-read self-consistency verification<br/>• AI Quarantine Advisor (synthesizing discrepancy remedies)<br/>• Conversational Ledger Chatbot & inline CSS chart rendering |
+| **Failure Defense** | Catches schema anomalies, drops bad rows to Quarantine | Bounded by deterministic schemas; cannot self-approve to POSTED |
+
+### 2.2 Multi-Agent Swarm Topology & Coordination
+
+Rather than a monolithic prompt chain, FinProof deploys a swarm of 6 specialized agents:
+1. **Ingestion & Security Router Agent:** Magic-bytes MIME sniffing, file validation, and PII masking.
+2. **Parallel Extraction Worker Swarm:** Fan-out workers (Vision Worker, PDF Worker, Tabular CSV Worker) running concurrently.
+3. **Self-Verification Agent:** Runs perturbation-based dual-reads, element-wise array verification, and confidence thresholding.
+4. **Graph Reconciliation & Matching Agent:** Multi-way entity matching across merchant strings, date windows, and monetary exactness; collapses duplicates and isolates anomalies.
+5. **AI Quarantine Advisor Agent:** Diagnoses root causes of isolated conflicts and constructs structured action payloads.
+6. **Conversational Ledger & Analytics Agent:** Natural language query engine translating ledger queries into structured analytics and animated charts.
+
 ---
 
 ## 3. The reconciliation state machine
@@ -135,6 +170,32 @@ stateDiagram-v2
 a suggestion. `VERIFIED` is only reachable if deterministic checks pass; the model
 cannot "talk its way" into POSTED. This is the structural difference between a
 demo and a system you would let touch real money.
+
+### 3.1 Manual Intervention & Quarantine Lifecycle (Human-in-the-Loop)
+
+In financial systems, automated execution must halt and quarantine whenever ambiguity threatens ledger integrity. The Human-in-the-Loop (HITL) pattern is structured across three axes:
+
+#### 1. WHAT is missing or not matching?
+* **Cross-Source Amount Conflict:** Mismatched values between independent documents (e.g. Receipt ₹450 vs Bank Statement ₹540).
+* **Missing Supporting Document (Orphan Leg):** A bank debit without a corresponding invoice/PO, or an invoice without a clearing record.
+* **Low Extraction Confidence:** Per-field confidence $\tau < 0.80$ resulting from faded thermal paper, skewed angles, or visual glare.
+* **Schema Drift & Unmapped Columns:** Column header shifts in bank CSVs that cannot be mapped with $\ge 90\%$ confidence.
+* **Tax & Arithmetic Invariance Failures:** Line-item sums disagreeing with invoice totals, or GST calculation discrepancies.
+
+#### 2. WHERE is it surfaced?
+* **Dedicated Quarantine Lane:** Visually and logically separated from the `POSTED` ledger to prevent downstream report pollution.
+* **Visual Evidence Canvas (Side-by-Side Diff):**
+  * Primary source image/text snippet with bounding box highlight over the disputed field.
+  * Secondary source record (e.g. statement row or ERP PO).
+  * Delta Badge displaying exact amount variance ($\Delta$), percentage skew, and merchant similarity score.
+* **AgentOps Trace Panel:** Full audit view of the prompt, model output, and verification check that triggered quarantine.
+
+#### 3. HOW is the manual intervention executed?
+* **AI Quarantine Advisor (✨ AI Suggest):** Synthesizes the discrepancy context and provides 2–3 structured, risk-assessed actions (e.g. *"Use Statement ₹540"*, *"Use Receipt ₹450"*, *"Dismiss"*).
+* **One-Click State Transition:** Clicking an option transitions the record directly from `QUARANTINE` to `POSTED` (or `DISMISSED`) via `/runs/{id}/quarantine/{txn_id}/resolve`.
+* **Immutable Audit Ledger:** Every override logs reviewer ID, timestamp, selected remedy, and rationale into the append-only event stream.
+* **Interactive Field Editing:** Reviewers can manually correct values; deterministic validators (Pydantic / Pandera) re-validate before moving to `POSTED`.
+* **Adaptive Policy Synthesis:** Reviewers can mark recurring patterns to auto-generate deterministic rules for future runs.
 
 ---
 

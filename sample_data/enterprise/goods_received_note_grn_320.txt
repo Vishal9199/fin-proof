@@ -1,0 +1,16 @@
+GOODS RECEIVED NOTE: GRN-2026-0320
+Warehouse: Pune Central Logistics DC-4
+Reference PO: PO-8841-TECH
+Carrier / Challan: DTDC Express / CH-99410
+Received Date: 2026-05-22
+
+PHYSICAL VERIFICATION & INSPECTION:
+1. Enterprise UltraBook i7 (SKU: UB-772)
+   Ordered: 50 units | Received: 48 units | Damaged/Shortage: 2 units (Backordered by vendor)
+2. USB-C Universal Docking Station (SKU: DK-104)
+   Ordered: 50 units | Received: 50 units | Condition: Good (Accepted)
+
+ACCEPTED QUANTITY: 48 Laptops, 50 Docking Stations
+INSPECTION REMARK: 2 laptops short-shipped. Invoice must reflect adjusted quantity of 48 units.
+Inspected by: Senior Stores Officer, Inward Bay 2
+

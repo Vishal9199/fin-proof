@@ -1,0 +1,18 @@
+PURCHASE ORDER: PO-8841-TECH
+Buyer: Acme Global Technologies Ltd.
+Vendor: Nova Hardware Solutions Pvt Ltd.
+GSTIN: 27AABCN1234F1Z5
+PO Date: 2026-05-15
+Payment Terms: Net 30 days (2% discount if paid in 10 days)
+
+LINE ITEMS:
+1. Enterprise UltraBook i7 (SKU: UB-772)
+   Quantity: 50 units @ ₹85,000.00 = ₹42,50,000.00
+2. USB-C Universal Docking Station (SKU: DK-104)
+   Quantity: 50 units @ ₹8,000.00 = ₹4,00,000.00
+
+SUBTOTAL: ₹46,50,000.00
+IGST (18%): ₹8,37,000.00
+TOTAL APPROVED PO VALUE: ₹54,87,000.00
+Authorized Signatory: Head of Corporate Procurement
+

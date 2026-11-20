@@ -41,23 +41,27 @@ _The LLM proposes; deterministic code disposes._
 
 ---
 
-## The problem (one I live every month)
+## The problem (and who this is for)
 
-My spending is scattered across three card apps, a bank CSV, UPI screenshots, and
-a wallet full of paper receipts. Reconciling them is genuinely awful: the same
-coffee shows up in two places with two different amounts, a receipt gets
-double-counted, and OCR quietly turns ₹450 into ₹480. The friction isn't
-*reading* the documents — it's *trusting* the merged result.
+Financial reconciliation is fundamentally not an OCR problem — it is a **trust** problem. Whether for a **Bank Settlement Desk**, a **Commercial Lending Underwriter**, an **Enterprise Accounts Payable (AP) Team**, or a business owner managing multiple payment streams, financial transactions are scattered across contradictory sources:
+* Bank / card statements (CSVs that drift schemas silently)
+* Digital payment switch logs (UPI, SWIFT MT940, NEFT/RTGS)
+* ERP Purchase Orders & Goods Received Notes (GRNs)
+* Vendor invoices, paper receipts, and mobile screenshots
 
-Existing apps "categorize a screenshot." That's a script. The real problem needs
-a **system** that can extract in parallel, **verify its own work**, cross-link
-duplicates across sources, and quarantine anything it isn't sure about instead of
-silently corrupting the ledger.
+When the same transaction appears across multiple sources with **conflicting amounts** or **missing links**, naive automation double-counts or silently corrupts the ledger. Manual reconciliation wastes thousands of analyst hours and still risks regulatory audit fines.
 
-> FinProof is that system. It is built around one principle:
-> **the LLM proposes, deterministic code disposes.**
+> FinProof is built around a single foundational invariant:
+> **The LLM proposes; deterministic code disposes.**
+> No number is POSTED unless it can be proven; anything ambiguous is QUARANTINED, never guessed.
 
-## Why this is more than a chatbot
+### 🏢 Who is this for?
+1. **Commercial & Retail Banks:** Settlement desks reconciling Nostro/Vostro accounts, UPI switch logs, and Core Banking Systems (CBS) to eliminate daily manual break queues.
+2. **Commercial Lending & Credit Underwriters:** Risk officers verifying borrower bank statements against GSTR-2B tax filings and invoices to detect revenue fraud and circular trading.
+3. **Enterprise CFO Suite & Accounts Payable:** Controllers automating **3-Way Matching** (PO ↔ Delivery Challan/GRN ↔ Vendor Tax Invoice ↔ Bank clearing) with tax & discount term reconciliation.
+4. **FinTechs & Payment Gateways:** Merchant ops teams resolving payment drops, POS terminal batches, and chargebacks.
+
+## Why this is an autonomous system (not a chatbot)
 
 | Capability | What it means |
 |---|---|
