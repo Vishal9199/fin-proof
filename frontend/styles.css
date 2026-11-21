@@ -527,27 +527,97 @@ body {
 }
 .preset-btn:hover { border-color: var(--accent); filter: brightness(1.15); transform: translateY(-1px); }
 
-/* ── Evidence Diff Modal (Point 2: HITL Manual Intervention) ─────────────── */
-.diff-modal { max-width: 680px; }
+/* ── Evidence Diff Modal (Point 2: HITL Manual Intervention & Side-by-Side Dual-Doc Inspector) ── */
+.diff-modal { max-width: 980px; width: 95vw; }
 .diff-modal-body { display: flex; flex-direction: column; gap: 14px; margin: 12px 0; }
-.diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 580px) { .diff-grid { grid-template-columns: 1fr; } }
-.diff-box {
+.diff-split-container {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+@media (max-width: 768px) {
+  .diff-split-container { grid-template-columns: 1fr; }
+}
+.diff-doc-pane {
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px;
-  padding: 12px 14px;
+  display: flex; flex-direction: column; overflow: hidden;
 }
-.diff-box-head { font-size: 11px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-.diff-box-val { font-size: 20px; font-weight: 700; color: var(--text); }
-.diff-box-sub { font-size: 12px; color: var(--faint); margin-top: 4px; }
-.diff-delta-bar {
-  display: flex; align-items: center; justify-content: space-between;
+.diff-doc-head {
+  padding: 10px 14px; background: rgba(0,0,0,0.25); border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;
+}
+.diff-doc-name { font-size: 12.5px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.diff-doc-amt { font-size: 16px; font-weight: 700; font-family: var(--font-mono); color: var(--accent); }
+.diff-doc-meta {
+  padding: 6px 14px; font-size: 11px; color: var(--muted); border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex; justify-content: space-between;
+}
+.diff-doc-body {
+  padding: 12px 14px; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5;
+  color: var(--text); background: rgba(0,0,0,0.35); max-height: 220px; overflow-y: auto;
+  white-space: pre-wrap; word-break: break-word; flex: 1;
+}
+.diff-line-highlight {
+  background: rgba(255, 107, 53, 0.2); color: #ff9e7a; border-left: 3px solid var(--amber);
+  padding: 2px 4px; border-radius: 2px;
+}
+
+.variance-bridge-bar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
   background: rgba(255, 107, 53, 0.12); border: 1px solid rgba(255, 107, 53, 0.4);
-  border-radius: 10px; padding: 10px 14px;
+  border-radius: 10px; padding: 12px 16px;
 }
-.delta-val { font-size: 15px; font-weight: 700; color: var(--amber); }
-.hitl-section { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
-.hitl-title { font-size: 11px; font-family: var(--font-mono); font-weight: 700; color: var(--accent); text-transform: uppercase; margin-bottom: 4px; }
-.hitl-desc { font-size: 12.5px; color: var(--text); line-height: 1.45; }
+.variance-bridge-delta { display: flex; align-items: center; gap: 10px; }
+.variance-val { font-size: 18px; font-weight: 800; color: var(--amber); font-family: var(--font-mono); }
+.variance-pct { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(255,107,53,0.25); color: #ff8c5a; }
+
+.impact-consequence-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 4px;
+}
+@media (max-width: 640px) {
+  .impact-consequence-grid { grid-template-columns: 1fr; }
+}
+.impact-box {
+  border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px;
+}
+.impact-box.accept {
+  background: rgba(6, 214, 160, 0.06); border: 1px solid rgba(6, 214, 160, 0.35);
+}
+.impact-box.reject {
+  background: rgba(239, 71, 111, 0.06); border: 1px solid rgba(239, 71, 111, 0.35);
+}
+.impact-header {
+  display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.impact-box.accept .impact-header { color: var(--green); }
+.impact-box.reject .impact-header { color: var(--red); }
+.impact-detail-row {
+  font-size: 12px; color: var(--text); line-height: 1.4; display: flex; flex-direction: column; gap: 2px;
+}
+.impact-label { font-size: 10.5px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; }
+.impact-value { font-size: 12px; font-weight: 500; }
+.gl-entry-preview {
+  background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 11px;
+}
+
+.diff-modal-actions {
+  display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.diff-action-btn {
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; transition: all .15s ease;
+}
+.diff-action-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.diff-action-btn.accept {
+  background: var(--green); color: #000; border-color: var(--green);
+}
+.diff-action-btn.split {
+  background: rgba(255, 193, 7, 0.2); color: #ffd166; border-color: rgba(255, 193, 7, 0.5);
+}
+.diff-action-btn.reject {
+  background: rgba(239, 71, 111, 0.2); color: #ff7597; border-color: rgba(239, 71, 111, 0.5);
+}
+.diff-action-btn.dismiss {
+  background: transparent; color: var(--muted); border-color: var(--border);
+}
 
 /* ── Deterministic vs Non-Deterministic Badges (Point 3) ─────────────────── */
 .agent-type-badge {

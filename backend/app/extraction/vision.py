@@ -84,6 +84,7 @@ async def _extract_text(
         error = f"{type(exc).__name__}: {exc}"[:200]
         model = f"{provider.id}→mock"
 
+    raw_snip = f"Document: {name}\nExtracted text:\n{text[:1200].strip()}"
     txn = Transaction(
         id=f"txn_{uuid.uuid4().hex[:8]}",
         source_doc=name,
@@ -93,6 +94,7 @@ async def _extract_text(
         txn_date=parsed["txn_date"],
         state=TxnState.EXTRACTED,
         reference_no=parsed.get("reference_no"),
+        raw_snippet=raw_snip,
         confidence={
             "amount": FieldConfidence(value=parsed["confidence"], method=parsed["method"]),
             "merchant": FieldConfidence(value=0.95, method="schema"),
@@ -162,6 +164,14 @@ async def _extract_image(
                              tokens_in, tokens_out, extra, None)
 
     source_type = _KIND_TO_SOURCE.get(doc_kind, source_type)
+    visual_snip = (
+        f"Visual OCR: {name} (type: {doc_kind})\n"
+        f"Detected Merchant: {parsed['merchant']}\n"
+        f"Detected Amount: ₹{parsed['amount']}\n"
+        f"Detected Date: {parsed['txn_date']}\n"
+        f"Confidence: {parsed['confidence']}\n"
+        f"Visual Cross-Check: total={parsed.get('total')} item_sum={parsed.get('item_sum')}"
+    )
     txn = Transaction(
         id=f"txn_{uuid.uuid4().hex[:8]}",
         source_doc=name,
@@ -170,6 +180,7 @@ async def _extract_image(
         amount=parsed["amount"],
         txn_date=parsed["txn_date"],
         state=TxnState.EXTRACTED,
+        raw_snippet=visual_snip,
         confidence={
             "amount": FieldConfidence(value=parsed["confidence"], method=parsed["method"]),
             "merchant": FieldConfidence(value=0.95, method="schema"),

@@ -204,6 +204,7 @@ def _txn_from_row(
         reason = f"Row {index} failed the value contract (amount/date unparseable)."
         return quarantined_txn(name, source_type, reason,
                                evidence=[f"{name} · row {index}: raw={row['merchant']!r}"])
+    pdf_snip = f"PDF Document: {name} (Text Layer) | Line {index}:\n  Date: {txn_date} | Narration: {row['merchant']} | Amount: ₹{amount}"
     return Transaction(
         id=f"txn_{uuid.uuid4().hex[:8]}",
         source_doc=name,
@@ -212,6 +213,7 @@ def _txn_from_row(
         amount=amount,
         txn_date=txn_date,
         state=TxnState.EXTRACTED,
+        raw_snippet=pdf_snip,
         confidence={
             "amount": FieldConfidence(value=row["confidence"], method=row["method"]),
             "merchant": FieldConfidence(value=0.9, method="schema"),

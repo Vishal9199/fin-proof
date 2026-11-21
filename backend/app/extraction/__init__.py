@@ -62,6 +62,7 @@ def quarantined_txn(
         amount=Decimal("0"),
         txn_date=date.today(),
         state=TxnState.QUARANTINE,
+        raw_snippet=f"Unreadable Document: {doc_name}\nReason: {reason}",
         confidence={"amount": FieldConfidence(value=0.0, method="guardrail")},
         evidence=evidence or [f"{doc_name}: {reason}"],
         quarantine_reason=reason,

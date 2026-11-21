@@ -36,6 +36,10 @@ import tempfile
 
 _CACHE_DIR = Path(tempfile.gettempdir()) / "finproof_run_cache"
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+_SAMPLE_DATA_DIR = Path(
+    os.getenv("FIN_PROOF_SAMPLE_DATA_DIR")
+    or Path(__file__).resolve().parents[2] / "sample_data"
+)
 
 
 def _save_run_to_disk(run_id: str, result: RunResult) -> None:
@@ -44,6 +48,51 @@ def _save_run_to_disk(run_id: str, result: RunResult) -> None:
         p.write_text(result.model_dump_json(), encoding="utf-8")
     except Exception as e:
         log.warning("failed to persist run %s to disk: %s", run_id, e)
+
+
+def _save_docs_to_disk(run_id: str, docs: list[UploadedDoc]) -> None:
+    try:
+        p = _CACHE_DIR / f"{run_id}_docs.json"
+        doc_data = {}
+        for d in docs:
+            try:
+                doc_data[d.name] = d.data.decode("utf-8", errors="ignore")[:25000]
+            except Exception:
+                doc_data[d.name] = f"[Binary Document: {len(d.data)} bytes]"
+        p.write_text(json.dumps(doc_data, indent=2), encoding="utf-8")
+    except Exception as e:
+        log.warning("failed to persist docs for run %s to disk: %s", run_id, e)
+
+
+def get_doc_content(run_id: str, doc_name: str | None) -> str:
+    if not doc_name:
+        return ""
+    # 1. From staged in-memory
+    staged = _staged.get(run_id, [])
+    for d in staged:
+        if d.name == doc_name:
+            try:
+                return d.data.decode("utf-8", errors="ignore")[:15000]
+            except Exception:
+                return f"[Binary file: {len(d.data)} bytes]"
+    # 2. From disk cache
+    p = _CACHE_DIR / f"{run_id}_docs.json"
+    if p.is_file():
+        try:
+            doc_data = json.loads(p.read_text(encoding="utf-8"))
+            if doc_name in doc_data:
+                return doc_data[doc_name]
+        except Exception:
+            pass
+    # 3. From sample_data directory (recursive search)
+    if _SAMPLE_DATA_DIR.is_dir():
+        for f in _SAMPLE_DATA_DIR.rglob("*"):
+            if f.is_file() and (f.name == doc_name or doc_name in f.name or f.stem in doc_name):
+                try:
+                    return f.read_text(encoding="utf-8", errors="ignore")[:15000]
+                except Exception:
+                    pass
+    return ""
 
 
 def _load_run_from_disk(run_id: str) -> RunResult | None:
@@ -62,7 +111,47 @@ def get_cached_result(run_id: str) -> RunResult | None:
     res = _results.get(run_id)
     if res is not None:
         return res
-    return _load_run_from_disk(run_id)
+    res = _load_run_from_disk(run_id)
+    if res is not None:
+        return res
+    if _CACHE_DIR.is_dir():
+        for f in _CACHE_DIR.glob("run_*.json"):
+            if not f.name.endswith("_docs.json") and (run_id in f.stem or f.stem in run_id):
+                return _load_run_from_disk(f.stem)
+    return None
+
+
+def find_run_and_txn(run_id: str, txn_id: str):
+    # 1. Try direct get_cached_result
+    result = get_cached_result(run_id)
+    if result:
+        idx = next((i for i, t in enumerate(result.quarantined) if t.id == txn_id or txn_id in t.id or t.id in txn_id), None)
+        if idx is not None:
+            return result, run_id, result.quarantined[idx], idx
+
+    # 2. Search all cached runs on disk to find the one containing txn_id
+    if _CACHE_DIR.is_dir():
+        for f in _CACHE_DIR.glob("run_*.json"):
+            if not f.name.endswith("_docs.json"):
+                rid = f.stem
+                res = _load_run_from_disk(rid)
+                if res:
+                    idx = next((i for i, t in enumerate(res.quarantined) if t.id == txn_id or txn_id in t.id or t.id in txn_id), None)
+                    if idx is not None:
+                        return res, rid, res.quarantined[idx], idx
+
+    # 3. Fallback to latest run in memory or disk
+    if result is None:
+        latest_key = next((k for k in reversed(list(_results.keys()))), None)
+        if latest_key:
+            res = get_cached_result(latest_key)
+            if res:
+                idx = next((i for i, t in enumerate(res.quarantined) if t.id == txn_id or txn_id in t.id or t.id in txn_id), None)
+                if idx is not None:
+                    return res, latest_key, res.quarantined[idx], idx
+                return res, latest_key, None, None
+
+    return result, run_id, None, None
 
 
 def _remember(store: OrderedDict, key: str, value) -> None:
@@ -223,6 +312,7 @@ async def reconcile_endpoint(files: list[UploadFile] = File(...)) -> dict:
         docs.append(UploadedDoc(name=name, data=data))
     run_id = f"run_{uuid.uuid4().hex[:8]}"
     _remember(_staged, run_id, docs)
+    _save_docs_to_disk(run_id, docs)
     _remember(_status, run_id, {"state": "queued", "documents": len(docs)})
     asyncio.create_task(process_run(run_id, docs))
     log.info("run %s queued · %d documents", run_id, len(docs))
@@ -363,22 +453,127 @@ async def get_clusters(run_id: str) -> dict:
     return {"clusters": [c.model_dump(mode="json") for c in result.clusters]}
 
 
+@app.get("/runs/{run_id}/quarantine/{txn_id}/evidence-diff")
+async def get_quarantine_evidence_diff(run_id: str, txn_id: str) -> dict:
+    """Return side-by-side document excerpts, field-level variance comparison,
+    and explicit financial consequences of Accepting vs. Rejecting the transaction."""
+    from decimal import Decimal
+    result, resolved_run_id, txn, _ = find_run_and_txn(run_id, txn_id)
+    if result is None:
+        raise HTTPException(404, "Run not found.")
+    if txn is None:
+        raise HTTPException(404, "Transaction not found in quarantine.")
+
+    d = txn.discrepancy or {}
+    counterpart_id = d.get("counterpart_id")
+    counterpart_doc = d.get("counterpart_doc")
+
+    counterpart_txn = None
+    if counterpart_id:
+        counterpart_txn = next((t for t in result.quarantined + result.posted if t.id == counterpart_id), None)
+    if counterpart_txn is None and counterpart_doc:
+        counterpart_txn = next((t for t in result.quarantined + result.posted if t.source_doc == counterpart_doc), None)
+
+    primary_text = get_doc_content(resolved_run_id, txn.source_doc)
+    counterpart_text = get_doc_content(resolved_run_id, counterpart_doc) if counterpart_doc else ""
+
+    delta_str = d.get("delta") or (
+        str(abs(txn.amount - counterpart_txn.amount)) if counterpart_txn else "0.00"
+    )
+    pct_val = d.get("variance_percent", 0.0)
+    root_cause = txn.root_cause_code.value if txn.root_cause_code else d.get("root_cause_code", "ERR_PRICE_VARIANCE")
+
+    primary_snip = txn.raw_snippet or (primary_text[:1200] if primary_text else f"Source Document: {txn.source_doc}")
+    counterpart_snip = (
+        (counterpart_txn.raw_snippet if counterpart_txn else d.get("counterpart_snippet"))
+        or (counterpart_text[:1200] if counterpart_text else f"Counterpart Document: {counterpart_doc or 'General Ledger Match'}")
+    )
+
+    return {
+        "ok": True,
+        "run_id": resolved_run_id,
+        "txn_id": txn.id,
+        "primary": {
+            "id": txn.id,
+            "doc_name": txn.source_doc,
+            "source_type": txn.source_type,
+            "merchant": txn.normalized_merchant or txn.merchant,
+            "amount": str(txn.amount),
+            "currency": txn.currency,
+            "txn_date": str(txn.txn_date),
+            "reference_no": txn.reference_no or "N/A",
+            "snippet": primary_snip,
+            "full_preview": primary_text[:3000] if primary_text else primary_snip,
+            "confidence": txn.confidence.get("amount").value if (txn.confidence and "amount" in txn.confidence) else 0.95,
+        },
+        "counterpart": {
+            "id": counterpart_txn.id if counterpart_txn else counterpart_id or "N/A",
+            "doc_name": counterpart_doc or (counterpart_txn.source_doc if counterpart_txn else "Reference Ledger Record"),
+            "source_type": counterpart_txn.source_type if counterpart_txn else d.get("counterpart_type", "bank_feed"),
+            "merchant": counterpart_txn.merchant if counterpart_txn else d.get("counterpart_merchant", txn.merchant),
+            "amount": str(counterpart_txn.amount) if counterpart_txn else d.get("counterpart_amount", str(txn.amount)),
+            "currency": counterpart_txn.currency if counterpart_txn else "INR",
+            "txn_date": str(counterpart_txn.txn_date) if counterpart_txn else d.get("counterpart_date", str(txn.txn_date)),
+            "reference_no": counterpart_txn.reference_no if counterpart_txn else d.get("counterpart_ref", "N/A"),
+            "snippet": counterpart_snip,
+            "full_preview": counterpart_text[:3000] if counterpart_text else counterpart_snip,
+            "confidence": 0.99,
+        },
+        "variance": {
+            "delta": delta_str,
+            "variance_percent": pct_val,
+            "what": d.get("what", txn.quarantine_reason or "Variance detected between records"),
+            "where": d.get("where", "Quarantine Lane (isolated prior to General Ledger posting)"),
+            "how_to_resolve": d.get("how_to_resolve", "Inspect source document line items side-by-side."),
+            "root_cause_code": root_cause,
+        },
+        "accept_impact": d.get("accept_impact") or {
+            "title": "Accept & Post Balancing GL Entry",
+            "gl_narration": f"Recognize liability ₹{txn.amount} and post balancing variance of ₹{delta_str} to General Ledger.",
+            "itc_treatment": "Claim Input Tax Credit under GST Sec 16(2); variance absorbed in operational P&L.",
+            "treasury_verdict": "Unblocks AP disbursement; generates approved payment voucher.",
+            "dr_account": "6100 - Operational Expense / Inventory",
+            "cr_account": "2010 - Accounts Payable / Bank",
+            "dr_amount": str(txn.amount),
+            "cr_amount": str(txn.amount),
+        },
+        "reject_impact": d.get("reject_impact") or {
+            "title": "Reject & Hold Payment in Treasury",
+            "action_narration": f"Disbursement frozen in Treasury. Auto-generates Debit Note / Commercial Dispute Notice for ₹{delta_str}.",
+            "vendor_action": f"Dispute Notice served to vendor for ₹{delta_str} variance citing {root_cause}.",
+            "tax_safety": "Withholds GST ITC claim to avoid tax disallowance and penalty under Rule 36(4).",
+            "debit_note_amt": delta_str,
+        },
+        "actions": [
+            {
+                "label": "✓ Approve & Post GL Entry",
+                "action": "override",
+                "amount": float(txn.amount),
+                "merchant": txn.merchant,
+                "category": txn.category or "Operational Expense",
+            },
+            {
+                "label": "⚡ Split Fee / Surcharge",
+                "action": "split_fee",
+                "amount": float(txn.amount),
+                "fee_amount": float(delta_str) if delta_str != "0.00" else 0.0,
+                "fee_label": "Surcharge / Variance Adjustment",
+            },
+            {
+                "label": "✕ Reject & Freeze Payment",
+                "action": "reject",
+            },
+        ],
+    }
+
+
 @app.get("/runs/{run_id}/quarantine/{txn_id}/suggest")
 async def get_quarantine_suggestion(run_id: str, txn_id: str) -> dict:
     """Propose AI-assisted resolution options for a quarantined transaction."""
     from .ai_enrichment import generate_quarantine_resolution_suggestion
-    result = get_cached_result(run_id)
-    if result is None:
-        latest_key = next((k for k in reversed(list(_results.keys()))), None)
-        if latest_key:
-            result = get_cached_result(latest_key)
+    result, _, txn, _ = find_run_and_txn(run_id, txn_id)
     if result is None:
         raise HTTPException(404, "Run not found.")
-    
-    # Find transaction in quarantined list
-    txn = next((t for t in result.quarantined if t.id == txn_id), None)
-    if txn is None:
-        txn = next((t for t in result.quarantined if txn_id in t.id or t.id in txn_id), None)
     if txn is None:
         raise HTTPException(404, "Transaction not found in quarantine.")
         
@@ -399,22 +594,13 @@ class ResolveRequest(BaseModel):
 async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest) -> dict:
     """Resolve a quarantined item by overriding its fields, splitting fees, or dismissing it."""
     from decimal import Decimal
-    result = get_cached_result(run_id)
-    if result is None:
-        latest_key = next((k for k in reversed(list(_results.keys()))), None)
-        if latest_key:
-            result = get_cached_result(latest_key)
+    result, resolved_run_id, txn, txn_idx = find_run_and_txn(run_id, txn_id)
     if result is None:
         raise HTTPException(404, "Run not found.")
-        
-    # Find transaction in quarantined list
-    txn_idx = next((i for i, t in enumerate(result.quarantined) if t.id == txn_id), None)
-    if txn_idx is None:
-        txn_idx = next((i for i, t in enumerate(result.quarantined) if txn_id in t.id or t.id in txn_id), None)
-    if txn_idx is None:
+    if txn is None or txn_idx is None:
         raise HTTPException(404, "Transaction not found in quarantine.")
         
-    txn = result.quarantined[txn_idx]
+    run_id = resolved_run_id
     fee_txn = None
     
     if body.action == "override":
@@ -491,12 +677,6 @@ async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest
 
 
 # ── Sample data (for dashboard scenario buttons) ─────────────────────────────
-_SAMPLE_DATA_DIR = Path(
-    os.getenv("FIN_PROOF_SAMPLE_DATA_DIR")
-    or Path(__file__).resolve().parents[2] / "sample_data"
-)
-
-
 @app.get("/sample-files")
 async def list_sample_files(preset: Optional[str] = None) -> dict:
     if not _SAMPLE_DATA_DIR.is_dir():

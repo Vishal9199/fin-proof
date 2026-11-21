@@ -125,6 +125,12 @@ async def extract_bank_csv(run_id: str, name: str, data: bytes) -> list[Extracti
             import re
             m = re.search(r"(?:PO|GRN|INV|REF|RTGS|NEFT)[-:\s#/]+([A-Z0-9\-_]+)", c["merchant"], re.I)
             ref_val = m.group(1).strip() if m else None
+        row_snip = (
+            f"CSV Document: {name} | Row {i+1}:\n"
+            f"  Date: {c['txn_date']} | Merchant / Narration: {c['merchant']}\n"
+            f"  Amount: ₹{c['amount']:.2f} | Ref: {ref_val or 'N/A'}\n"
+            f"  Raw Row: {dict(rows[i])}"
+        )
         txns.append(
             Transaction(
                 id=f"txn_{uuid.uuid4().hex[:8]}",
@@ -134,6 +140,7 @@ async def extract_bank_csv(run_id: str, name: str, data: bytes) -> list[Extracti
                 amount=_to_decimal(str(c["amount"])),
                 txn_date=c["txn_date"],
                 state=TxnState.EXTRACTED,
+                raw_snippet=row_snip,
                 confidence={
                     "amount": FieldConfidence(value=0.99, method="schema"),
                     "merchant": FieldConfidence(value=header_conf, method="schema"),
@@ -172,6 +179,7 @@ def _quarantine_row(name: str, row: dict, reason: str) -> Transaction:
         amount=Decimal("0"),
         txn_date=date.today(),
         state=TxnState.QUARANTINE,
+        raw_snippet=f"Document: {name} (Quarantined CSV Row)\nRaw Row Data: {row}\nReason: {reason}",
         confidence={"amount": FieldConfidence(value=0.0, method="schema")},
         evidence=[f"{name}: {reason} raw={row}"],
         quarantine_reason=reason,

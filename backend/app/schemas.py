@@ -89,6 +89,7 @@ class Transaction(BaseModel):
     category: Optional[str] = None        # e.g. "Food & Dining", "Transport"
     normalized_merchant: Optional[str] = None  # cleaned-up display name
     reference_no: Optional[str] = None    # e.g. PO-8841, INV-992, UTR reference
+    raw_snippet: Optional[str] = None     # Original document text/row excerpt for side-by-side audit
     discrepancy: Optional[dict] = None    # Structured {what, where, how_to_resolve, delta, variance_pct}
     audit_hash: Optional[str] = None      # Cryptographic SHA-256 seal for tamper-evidence
     root_cause_code: Optional[RootCauseCode] = None

@@ -271,51 +271,248 @@ if ($("diff-modal-dismiss")) $("diff-modal-dismiss").addEventListener("click", c
 if (diffOverlay) diffOverlay.addEventListener("click", (e) => { if (e.target === diffOverlay) closeDiffModal(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && diffOverlay && !diffOverlay.classList.contains("hidden")) closeDiffModal(); });
 
-function openDiffModal(txn) {
+async function openDiffModal(txn) {
   if (!txn) return;
-  const d = txn.discrepancy || {};
-  const deltaStr = d.delta ? `₹${d.delta}` : (d.variance_percent != null ? `${d.variance_percent}%` : "Manual review required");
-  const varianceStr = d.variance_percent != null ? `${d.variance_percent}%` : "Threshold Exceeded";
-  const refNo = txn.reference_no || "N/A";
-  const sourceDoc = txn.source_doc || "Uploaded Document";
-  const counterpartDoc = d.counterpart_doc ? `Counterpart: ${escapeHtml(d.counterpart_doc)} (₹${d.counterpart_amount || ''})` : `Safety Gate: Quarantined before General Ledger`;
-  
   const bodyEl = $("diff-modal-body");
   if (!bodyEl) return;
+
+  if ($("diff-title")) $("diff-title").innerHTML = "🔍 Side-by-Side Dual-Document Evidence & Impact Inspector";
+  
+  bodyEl.innerHTML = `<div style="padding: 28px; text-align: center; color: var(--muted);"><span class="spinner"></span> Loading source documents and financial impact analysis…</div>`;
+  diffOverlay.classList.remove("hidden");
+
+  let diffData = null;
+  if (currentRunId && txn.id) {
+    try {
+      const res = await fetch(`${API}/runs/${currentRunId}/quarantine/${txn.id}/evidence-diff`);
+      if (res.ok) {
+        diffData = await res.json();
+      }
+    } catch (e) {
+      console.warn("Could not fetch evidence diff from API, falling back to local metadata", e);
+    }
+  }
+
+  // Fallback to local transaction object if API unavailable
+  if (!diffData || !diffData.primary) {
+    const d = txn.discrepancy || {};
+    const deltaVal = d.delta || "0.00";
+    const variancePct = d.variance_percent != null ? d.variance_percent : 0.0;
+    diffData = {
+      primary: {
+        doc_name: txn.source_doc || "Uploaded Document",
+        source_type: txn.source_type || "receipt",
+        merchant: txn.normalized_merchant || txn.merchant || "Unknown",
+        amount: String(txn.amount || "0.00"),
+        txn_date: String(txn.txn_date || "N/A"),
+        reference_no: txn.reference_no || "N/A",
+        full_preview: txn.raw_snippet || d.primary_snippet || "Document content recorded in quarantine vault."
+      },
+      counterpart: {
+        doc_name: d.counterpart_doc || "Counterpart Statement / Ledger Record",
+        source_type: d.counterpart_type || "bank_feed",
+        merchant: d.counterpart_merchant || txn.merchant || "Counterpart",
+        amount: d.counterpart_amount || String(txn.amount || "0.00"),
+        txn_date: d.counterpart_date || String(txn.txn_date || "N/A"),
+        reference_no: d.counterpart_ref || "N/A",
+        full_preview: d.counterpart_snippet || "Counterpart document content recorded in quarantine vault."
+      },
+      variance: {
+        delta: deltaVal,
+        variance_percent: variancePct,
+        what: d.what || txn.quarantine_reason || "Amount mismatch across sources",
+        where: d.where || "Quarantine Lane",
+        how_to_resolve: d.how_to_resolve || "Review variance against source documents.",
+        root_cause_code: txn.root_cause_code || d.root_cause_code || "ERR_PRICE_VARIANCE"
+      },
+      accept_impact: d.accept_impact || {
+        gl_narration: `Recognize liability ₹${txn.amount} and post balancing variance of ₹${deltaVal} to General Ledger.`,
+        itc_treatment: "Claim Input Tax Credit under GST Sec 16(2); variance absorbed in operational P&L.",
+        treasury_verdict: "Unblocks AP disbursement; generates approved payment voucher."
+      },
+      reject_impact: d.reject_impact || {
+        vendor_action: `Dispute Notice served to vendor for ₹${deltaVal} variance.`,
+        tax_safety: "Withholds GST ITC claim to avoid tax disallowance and penalty under Rule 36(4)."
+      },
+      actions: [
+        { label: "✓ Approve & Post GL Entry", action: "override", amount: parseFloat(txn.amount) },
+        { label: "⚡ Split Fee / Surcharge", action: "split_fee", amount: parseFloat(txn.amount), fee_amount: parseFloat(deltaVal) },
+        { label: "✕ Reject & Freeze Payment", action: "reject" }
+      ]
+    };
+  }
+
+  const p = diffData.primary;
+  const c = diffData.counterpart;
+  const v = diffData.variance;
+  const ai = diffData.accept_impact;
+  const ri = diffData.reject_impact;
+
+  function highlightSnippet(text) {
+    if (!text) return '<span style="color: var(--muted); font-style: italic;">No raw text recorded</span>';
+    const lines = escapeHtml(text).split('\n');
+    return lines.map(line => {
+      if (line.includes('DISCREPANCY') || line.includes('Shortage') || line.includes('short-shipped') || line.includes('TOTAL') || line.includes('Total') || line.includes('Subtotal')) {
+        return `<span class="diff-line-highlight">${line}</span>`;
+      }
+      return line;
+    }).join('\n');
+  }
+
+  const rcLabel = v.root_cause_code === "ERR_QTY_SHORT_SHIPMENT" ? "SHORT-SHIPMENT VARIANCE"
+    : v.root_cause_code === "ERR_UNRECORDED_FEE" ? "UNRECORDED FEE / SURCHARGE"
+    : v.root_cause_code === "ERR_OCR_UNREADABLE" ? "LOW OCR CONFIDENCE"
+    : v.root_cause_code === "ERR_SCHEMA_DRIFT" ? "HEADER SCHEMA DRIFT" : "PRICE & AMOUNT VARIANCE";
+
   bodyEl.innerHTML = `
-    <div class="diff-grid">
-      <div class="diff-box">
-        <div class="diff-box-head">Isolated Transaction</div>
-        <div class="diff-box-val">₹${txn.amount}</div>
-        <div class="diff-box-sub"><b>Entity:</b> ${escapeHtml(txn.normalized_merchant || txn.merchant)}</div>
-        <div class="diff-box-sub"><b>Reference:</b> <span class="ref-badge">#${escapeHtml(refNo)}</span></div>
-        <div class="diff-box-sub"><b>Document:</b> ${escapeHtml(sourceDoc)}</div>
+    <!-- Dual-Document Side-by-Side Panes -->
+    <div class="diff-split-container">
+      <div class="diff-doc-pane">
+        <div class="diff-doc-head">
+          <span class="diff-doc-name">📄 ${escapeHtml(p.doc_name)}</span>
+          <span class="diff-doc-amt">₹${escapeHtml(p.amount)}</span>
+        </div>
+        <div class="diff-doc-meta">
+          <span><b>Type:</b> ${escapeHtml(p.source_type).toUpperCase()}</span>
+          <span><b>Date:</b> ${escapeHtml(p.txn_date)}</span>
+          <span><b>Ref:</b> #${escapeHtml(p.reference_no)}</span>
+        </div>
+        <div class="diff-doc-body">${highlightSnippet(p.full_preview || p.snippet)}</div>
       </div>
-      <div class="diff-box">
-        <div class="diff-box-head">Reconciliation Verdict</div>
-        <div class="diff-box-val" style="color: var(--amber)">QUARANTINED</div>
-        <div class="diff-box-sub"><b>Variance:</b> ${varianceStr}</div>
-        <div class="diff-box-sub"><b>Discrepancy Delta:</b> ${deltaStr}</div>
-        <div class="diff-box-sub"><b>Audit Hash:</b> ${txn.audit_hash ? txn.audit_hash.slice(0, 16) + '…' : 'SHA-256 Validated'}</div>
+
+      <div class="diff-doc-pane">
+        <div class="diff-doc-head">
+          <span class="diff-doc-name">📄 ${escapeHtml(c.doc_name)}</span>
+          <span class="diff-doc-amt">₹${escapeHtml(c.amount)}</span>
+        </div>
+        <div class="diff-doc-meta">
+          <span><b>Type:</b> ${escapeHtml(c.source_type).toUpperCase()}</span>
+          <span><b>Date:</b> ${escapeHtml(c.txn_date)}</span>
+          <span><b>Ref:</b> #${escapeHtml(c.reference_no)}</span>
+        </div>
+        <div class="diff-doc-body">${highlightSnippet(c.full_preview || c.snippet)}</div>
       </div>
     </div>
 
-    <div class="diff-delta-bar">
-      <span><b>WHAT is mismatched:</b></span>
-      <span class="delta-val">${escapeHtml(d.what || txn.quarantine_reason || txn.reason || "Variance detected across sources")}</span>
+    <!-- Center Variance Bridge -->
+    <div class="variance-bridge-bar">
+      <div class="variance-bridge-delta">
+        <span style="font-size: 12px; color: var(--muted); text-transform: uppercase;">Reconciliation Delta:</span>
+        <span class="variance-val">Δ ₹${escapeHtml(v.delta)}</span>
+        <span class="variance-pct">${escapeHtml(v.variance_percent)}% Variance</span>
+      </div>
+      <div>
+        <span class="badge-root-cause qty">${escapeHtml(rcLabel)}</span>
+      </div>
     </div>
 
-    <div class="hitl-section">
-      <div class="hitl-title">📍 WHERE Isolated</div>
-      <div class="hitl-desc">${escapeHtml(d.where || counterpartDoc)}</div>
+    <!-- Financial Impact Consequence Grid -->
+    <div class="impact-consequence-grid">
+      <div class="impact-box accept">
+        <div class="impact-header">
+          <span>🟢 WHAT ACCEPTING DOES</span>
+          <span style="font-size: 10px; font-family: var(--font-mono);">POST TO GENERAL LEDGER</span>
+        </div>
+        <div class="impact-detail-row">
+          <span class="impact-label">Double-Entry Booking (GL)</span>
+          <div class="gl-entry-preview">
+            DR 6100 - Vendor Expense / Inventory: ₹${escapeHtml(p.amount)}<br>
+            CR 2010 - Accounts Payable / Bank: ₹${escapeHtml(p.amount)}
+          </div>
+        </div>
+        <div class="impact-detail-row">
+          <span class="impact-label">GST / Tax Status</span>
+          <span class="impact-value">${escapeHtml(ai.itc_treatment || "Claims Input Tax Credit under Section 16(2); discrepancy absorbed in P&L.")}</span>
+        </div>
+        <div class="impact-detail-row">
+          <span class="impact-label">Treasury Directive</span>
+          <span class="impact-value" style="color: var(--green); font-weight: 700;">✓ ${escapeHtml(ai.treasury_verdict || "Unblocks AP disbursement; generates approved payment voucher.")}</span>
+        </div>
+      </div>
+
+      <div class="impact-box reject">
+        <div class="impact-header">
+          <span>🔴 WHAT REJECTING DOES</span>
+          <span style="font-size: 10px; font-family: var(--font-mono);">TREASURY PAYMENT FREEZE</span>
+        </div>
+        <div class="impact-detail-row">
+          <span class="impact-label">Cash Outflow Protection</span>
+          <div class="gl-entry-preview" style="color: #ff9e7a;">
+            DISBURSEMENT FROZEN IN TREASURY · NO LIABILITY BOOKED
+          </div>
+        </div>
+        <div class="impact-detail-row">
+          <span class="impact-label">Vendor Dispute Action</span>
+          <span class="impact-value">${escapeHtml(ri.vendor_action || `Dispute Notice served to vendor for ₹${v.delta} variance.`)}</span>
+        </div>
+        <div class="impact-detail-row">
+          <span class="impact-label">Tax Safety Safeguard</span>
+          <span class="impact-value" style="color: var(--amber); font-weight: 600;">⚠ ${escapeHtml(ri.tax_safety || "Withholds GST ITC claim to avoid tax disallowance under Rule 36(4).")}</span>
+        </div>
+      </div>
     </div>
 
-    <div class="hitl-section">
-      <div class="hitl-title">🛠️ HOW to Resolve</div>
-      <div class="hitl-desc">${escapeHtml(d.how_to_resolve || "Use 'AI Suggest' to split fee/discount, issue shortage debit note, or approve with human sign-off note.")}</div>
+    <!-- Live Execution Actions inside Modal -->
+    <div class="diff-modal-actions">
+      <button type="button" class="diff-action-btn accept" id="modal-act-accept">✓ Approve & Post GL Entry</button>
+      <button type="button" class="diff-action-btn split" id="modal-act-split">⚡ Split Fee / Debit Note (₹${escapeHtml(v.delta)})</button>
+      <button type="button" class="diff-action-btn reject" id="modal-act-reject">✕ Reject & Freeze Payment</button>
+      <button type="button" class="diff-action-btn dismiss" id="modal-act-dismiss">Dismiss</button>
     </div>
   `;
-  diffOverlay.classList.remove("hidden");
+
+  // Wire up action buttons
+  const cardEl = document.querySelector(`.card[data-id="${txn.id}"]`) || document.querySelector(`#quarantine-list .card`);
+
+  const btnAccept = $("modal-act-accept");
+  if (btnAccept) {
+    btnAccept.addEventListener("click", async () => {
+      btnAccept.disabled = true;
+      btnAccept.textContent = "Posting...";
+      await applyResolution(cardEl, txn, {
+        action: "override",
+        amount: parseFloat(p.amount),
+        merchant: p.merchant,
+        label: "Approved via Side-by-Side Inspector"
+      });
+      closeDiffModal();
+    });
+  }
+
+  const btnSplit = $("modal-act-split");
+  if (btnSplit) {
+    btnSplit.addEventListener("click", async () => {
+      btnSplit.disabled = true;
+      btnSplit.textContent = "Processing...";
+      const isFee = (v.root_cause_code || "").includes("FEE");
+      await applyResolution(cardEl, txn, {
+        action: isFee ? "split_fee" : "debit_note",
+        amount: parseFloat(p.amount),
+        fee_amount: parseFloat(v.delta),
+        fee_label: isFee ? "Service Fee / Surcharge" : "Shortage Debit Note",
+        label: isFee ? "Fee Split via Inspector" : "Debit Note via Inspector"
+      });
+      closeDiffModal();
+    });
+  }
+
+  const btnReject = $("modal-act-reject");
+  if (btnReject) {
+    btnReject.addEventListener("click", async () => {
+      btnReject.disabled = true;
+      btnReject.textContent = "Rejecting...";
+      await applyResolution(cardEl, txn, {
+        action: "reject",
+        label: "Rejected & Payment Frozen"
+      });
+      closeDiffModal();
+    });
+  }
+
+  const btnDismiss = $("modal-act-dismiss");
+  if (btnDismiss) {
+    btnDismiss.addEventListener("click", closeDiffModal);
+  }
 }
 
 function addCard(listId, kind, title, right, why, flash = false, txn = null) {
