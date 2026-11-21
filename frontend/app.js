@@ -364,6 +364,49 @@ async function openDiffModal(txn) {
     : v.root_cause_code === "ERR_OCR_UNREADABLE" ? "LOW OCR CONFIDENCE"
     : v.root_cause_code === "ERR_SCHEMA_DRIFT" ? "HEADER SCHEMA DRIFT" : "PRICE & AMOUNT VARIANCE";
 
+  let lineItemsHtml = "";
+  if (diffData.line_items && diffData.line_items.length) {
+    const rows = diffData.line_items.map(li => {
+      const isShort = (li.status || "").includes("SHORTAGE") || (li.status || "").includes("FEE");
+      return `
+        <tr>
+          <td><b>${escapeHtml(li.sku_description)}</b></td>
+          <td>${escapeHtml(li.ordered_qty)}</td>
+          <td>${escapeHtml(li.received_qty)}</td>
+          <td>${escapeHtml(li.billed_qty)}</td>
+          <td>${escapeHtml(li.unit_price)}</td>
+          <td class="${isShort ? 'line-status-shortage' : 'line-status-matched'}">${escapeHtml(li.line_variance)}</td>
+          <td><span class="badge-root-cause ${isShort ? 'qty' : 'drift'}" style="margin:0; font-size:9.5px;">${escapeHtml(li.status)}</span></td>
+        </tr>
+      `;
+    }).join("");
+
+    lineItemsHtml = `
+      <div class="diff-line-items-card">
+        <div class="diff-line-items-title">
+          <span>📑 Itemized Line-Level Variance Schedule (3-Way / Spatial Grounding)</span>
+          <span style="font-size: 10px; color: var(--muted);">P2P LIFECYCLE AUDIT</span>
+        </div>
+        <table class="diff-line-table">
+          <thead>
+            <tr>
+              <th>SKU / Description</th>
+              <th>PO Ordered</th>
+              <th>GRN Received</th>
+              <th>Invoice Billed</th>
+              <th>Unit Rate</th>
+              <th>Line Discrepancy</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   bodyEl.innerHTML = `
     <!-- Dual-Document Side-by-Side Panes -->
     <div class="diff-split-container">
@@ -405,6 +448,9 @@ async function openDiffModal(txn) {
         <span class="badge-root-cause qty">${escapeHtml(rcLabel)}</span>
       </div>
     </div>
+
+    <!-- Spatial Line-Item Schedule -->
+    ${lineItemsHtml}
 
     <!-- Financial Impact Consequence Grid -->
     <div class="impact-consequence-grid">
@@ -1220,4 +1266,78 @@ async function openAuditDossierModal() {
   `;
 
   dossierOverlay.classList.remove("hidden");
+}
+
+// ── Institutional Rules & Active Learning Memory Modal ────────────────────
+const rulesOverlay = $("rules-modal-overlay");
+const closeRulesModal = () => { if (rulesOverlay) rulesOverlay.classList.add("hidden"); };
+
+if ($("rules-modal-close")) $("rules-modal-close").addEventListener("click", closeRulesModal);
+if ($("rules-modal-dismiss")) $("rules-modal-dismiss").addEventListener("click", closeRulesModal);
+if (rulesOverlay) rulesOverlay.addEventListener("click", (e) => { if (e.target === rulesOverlay) closeRulesModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && rulesOverlay && !rulesOverlay.classList.contains("hidden")) closeRulesModal(); });
+
+if ($("rules-nav-btn")) $("rules-nav-btn").addEventListener("click", openRulesModal);
+
+async function openRulesModal() {
+  const bodyEl = $("rules-modal-body");
+  if (!bodyEl) return;
+  bodyEl.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--muted);"><span class="spinner"></span> Loading organizational vendor rules…</div>`;
+  rulesOverlay.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`${API}/vendor-rules`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const rules = data.rules || [];
+
+    if (!rules.length) {
+      bodyEl.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--muted);">No rules recorded yet. Resolve quarantined items to teach the agent!</div>`;
+      return;
+    }
+
+    const rows = rules.map(r => `
+      <tr>
+        <td>
+          <span class="rule-id-badge">${escapeHtml(r.rule_id)}</span>
+          <div style="font-size: 10px; color: var(--muted);">${escapeHtml(r.learned_from || 'System')}</div>
+        </td>
+        <td>
+          <b>${escapeHtml(r.vendor_name)}</b>
+          <div style="font-size: 10.5px; color: var(--faint);">Pattern: <code>${escapeHtml(r.vendor_pattern)}</code></div>
+        </td>
+        <td>
+          <span class="rule-action-badge ${escapeHtml(r.resolution_action)}">${escapeHtml(r.resolution_action)}</span>
+          <div style="font-size: 11px; margin-top: 2px;">${escapeHtml(r.default_fee_label || 'Standard')}</div>
+        </td>
+        <td>
+          <b>${r.typical_delta ? '₹' + Number(r.typical_delta).toFixed(2) : 'Variable'}</b>
+          <div style="font-size: 10px; color: var(--muted);">${escapeHtml(r.gl_account_code)} · ${escapeHtml(r.gl_account_name)}</div>
+        </td>
+        <td>
+          <span style="color: var(--green); font-weight: 700;">${Math.round(r.confidence * 100)}%</span>
+          <div style="font-size: 10.5px; color: var(--muted);">${r.times_applied}x applied</div>
+        </td>
+      </tr>
+    `).join("");
+
+    bodyEl.innerHTML = `
+      <table class="rules-table">
+        <thead>
+          <tr>
+            <th>Rule ID & Source</th>
+            <th>Vendor & Match Key</th>
+            <th>Learned Action</th>
+            <th>Typical Variance & GL</th>
+            <th>Confidence & Usage</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    `;
+  } catch (err) {
+    bodyEl.innerHTML = `<div style="padding: 20px; color: var(--red);">Failed loading rules: ${escapeHtml(err.message)}</div>`;
+  }
 }

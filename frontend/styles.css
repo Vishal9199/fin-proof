@@ -619,6 +619,31 @@ body {
   background: transparent; color: var(--muted); border-color: var(--border);
 }
 
+/* ── Line-Item Reconciliation Table ─────────────────────────────────────── */
+.diff-line-items-card {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; margin-top: 4px;
+}
+.diff-line-items-title {
+  font-size: 11px; font-family: var(--font-mono); font-weight: 700; color: var(--accent);
+  text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
+}
+.diff-line-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.diff-line-table th { background: rgba(0,0,0,0.3); color: var(--muted); padding: 6px 10px; font-weight: 600; text-align: left; }
+.diff-line-table td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.line-status-shortage { color: var(--amber); font-weight: 700; }
+.line-status-matched { color: var(--green); font-weight: 600; }
+
+/* ── Institutional Rules Modal ───────────────────────────────────────────── */
+.rules-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.rules-table th { background: rgba(0,0,0,0.3); color: var(--muted); padding: 8px 12px; font-weight: 600; text-align: left; font-family: var(--font-mono); font-size: 11px; }
+.rules-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+.rule-id-badge { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 11px; }
+.rule-action-badge { font-family: var(--font-mono); font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: 700; }
+.rule-action-badge.split_fee { background: rgba(255,193,7,0.15); color: #ffd166; border: 1px solid rgba(255,193,7,0.3); }
+.rule-action-badge.debit_note { background: rgba(255,107,53,0.15); color: #ff8c5a; border: 1px solid rgba(255,107,53,0.3); }
+.rule-action-badge.override { background: rgba(6,214,160,0.15); color: var(--green); border: 1px solid rgba(6,214,160,0.3); }
+
 /* ── Deterministic vs Non-Deterministic Badges (Point 3) ─────────────────── */
 .agent-type-badge {
   display: inline-block; font-size: 9.5px; font-family: var(--font-mono); font-weight: 700;

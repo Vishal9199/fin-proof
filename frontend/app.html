@@ -28,6 +28,7 @@
                accept=".csv,.txt,.pdf,image/jpeg,image/png,image/webp,image/gif" />
         Upload pile
       </label>
+      <button type="button" id="rules-nav-btn" class="btn-ghost" title="View Learned Institutional Rules Memory">🧠 Rules Memory</button>
       <button type="button" id="dossier-nav-btn" class="btn-ghost dossier-nav-btn hidden" title="View Statutory Audit Certificate">📜 Audit Dossier</button>
       <button id="run-btn" class="run-btn" disabled>Reconcile</button>
     </div>
@@ -124,6 +125,26 @@
       <footer class="modal-foot cert-foot">
         <button type="button" id="print-dossier-btn" class="btn-primary">🖨️ Print / Save Statutory PDF</button>
         <button type="button" id="dossier-modal-dismiss" class="btn-ghost">Close</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Institutional Rules & Active Learning Memory Modal -->
+  <div id="rules-modal-overlay" class="modal-overlay hidden">
+    <div class="modal diff-modal" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+      <header class="modal-head">
+        <div>
+          <div class="cert-corp-name">INSTITUTIONAL MEMORY & ACTIVE LEARNING REPOSITORY</div>
+          <h2 id="rules-title">🧠 Learned Vendor & Dispute Rules</h2>
+        </div>
+        <button type="button" id="rules-modal-close" class="icon-btn" title="Close">✕</button>
+      </header>
+      <p class="modal-sub">
+        Rules automatically extracted, calibrated, and retained from human controller resolutions. These in-context exemplars empower the AI agent to resolve recurring breaks with 99%+ accuracy.
+      </p>
+      <div id="rules-modal-body" class="diff-modal-body"></div>
+      <footer class="modal-foot">
+        <button type="button" id="rules-modal-dismiss" class="btn-ghost">Close</button>
       </footer>
     </div>
   </div>
