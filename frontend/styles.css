@@ -566,3 +566,110 @@ body {
   display: flex; align-items: center; justify-content: space-between;
 }
 .seal-hash { color: var(--accent); font-weight: 700; }
+
+/* ── Summary & Header Action Buttons ─────────────────────────────────────── */
+.summary-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.dossier-nav-btn {
+  font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px;
+  background: rgba(0, 180, 216, 0.15); border: 1px solid var(--accent); color: var(--accent);
+  cursor: pointer; transition: all .15s ease;
+}
+.dossier-nav-btn:hover { background: rgba(0, 180, 216, 0.28); transform: translateY(-1px); }
+.dossier-btn {
+  background: linear-gradient(135deg, rgba(0, 180, 216, 0.2), rgba(157, 78, 221, 0.2)) !important;
+  border-color: var(--accent) !important; color: #fff !important; font-weight: 700 !important;
+}
+
+/* ── Root Cause Exception Badges ─────────────────────────────────────────── */
+.badge-root-cause {
+  display: inline-block; font-size: 10px; font-family: var(--font-mono); font-weight: 700;
+  padding: 3px 8px; border-radius: 6px; letter-spacing: 0.3px; text-transform: uppercase;
+  margin-left: 6px; vertical-align: middle;
+}
+.badge-root-cause.qty { background: rgba(255, 107, 53, 0.18); color: #ff8c5a; border: 1px solid rgba(255, 107, 53, 0.5); }
+.badge-root-cause.fee { background: rgba(255, 193, 7, 0.18); color: #ffd166; border: 1px solid rgba(255, 193, 7, 0.5); }
+.badge-root-cause.ocr { background: rgba(157, 78, 221, 0.18); color: #d8b4fe; border: 1px solid rgba(157, 78, 221, 0.5); }
+.badge-root-cause.drift { background: rgba(0, 180, 216, 0.18); color: #00b4d8; border: 1px solid rgba(0, 180, 216, 0.5); }
+
+/* ── Procure-to-Pay Lifecycle Clusters ───────────────────────────────────── */
+.clusters-section { margin-bottom: 18px; }
+.clusters-list { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.cluster-card {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; transition: border-color .15s ease;
+}
+.cluster-card:hover { border-color: var(--accent); }
+.cluster-card.variance { border-left: 4px solid var(--amber); }
+.cluster-card.cleared { border-left: 4px solid var(--green); }
+.cluster-header {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cluster-title { font-size: 13.5px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.cluster-type-badge {
+  font-size: 10px; font-family: var(--font-mono); font-weight: 700; padding: 2px 8px;
+  border-radius: 999px; text-transform: uppercase; background: rgba(0, 180, 216, 0.15);
+  color: var(--accent); border: 1px solid rgba(0, 180, 216, 0.3);
+}
+.cluster-variance-tag { font-size: 11.5px; font-weight: 700; color: var(--amber); }
+.cluster-legs {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 6px;
+}
+.leg-box {
+  background: rgba(8, 9, 12, 0.4); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-family: var(--font-mono);
+}
+.leg-label { font-size: 9.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.leg-val { font-size: 13px; font-weight: 700; color: var(--text); }
+.leg-status { font-size: 10px; margin-top: 3px; color: var(--faint); }
+
+/* ── Statutory Audit Certificate Modal ───────────────────────────────────── */
+.audit-dossier-modal { max-width: 860px; max-height: 88vh; overflow-y: auto; }
+.cert-head { flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 2px solid var(--accent); }
+.cert-corp-name { font-size: 11px; font-family: var(--font-mono); color: var(--accent); font-weight: 700; letter-spacing: 0.8px; }
+.audit-dossier-body { padding: 16px 4px; display: flex; flex-direction: column; gap: 18px; font-size: 12.5px; }
+.cert-meta-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;
+  background: var(--panel-2); padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border);
+}
+.cert-meta-item { display: flex; flex-direction: column; gap: 2px; }
+.cert-meta-label { font-size: 10px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; }
+.cert-meta-val { font-size: 13px; font-weight: 700; color: var(--text); }
+.cert-section-title {
+  font-size: 12px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase;
+  color: var(--accent); letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.cert-table {
+  width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px;
+  background: var(--panel-2); border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+}
+.cert-table th {
+  background: rgba(0, 180, 216, 0.1); color: var(--accent); text-align: left;
+  padding: 8px 12px; font-weight: 700; border-bottom: 1px solid var(--border);
+}
+.cert-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+.cert-table tr:last-child td { border-bottom: none; }
+.cert-journal-table th { background: rgba(157, 78, 221, 0.1); color: #d8b4fe; }
+.entry-debit { color: #06d6a0; font-weight: 700; }
+.entry-credit { color: #ff6b35; font-weight: 700; }
+.cert-declarations {
+  background: rgba(6, 214, 160, 0.06); border: 1px solid rgba(6, 214, 160, 0.25);
+  border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.cert-decl-item { font-size: 11.5px; color: var(--text); line-height: 1.45; }
+.cert-signoff-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+}
+.cert-seal-hash { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); word-break: break-all; margin-top: 4px; }
+
+/* ── Print Styles for Statutory Dossier ──────────────────────────────────── */
+@media print {
+  body * { visibility: hidden; }
+  #audit-dossier-modal-overlay, #audit-dossier-modal-overlay * { visibility: visible; }
+  #audit-dossier-modal-overlay { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 0; }
+  .audit-dossier-modal { max-width: 100%; border: none; box-shadow: none; background: #fff !important; color: #000 !important; }
+  .cert-table, .cert-meta-grid, .cert-signoff-grid { background: #f8f9fa !important; color: #000 !important; border-color: #ccc !important; }
+  .cert-table td, .cert-table th { color: #000 !important; border-color: #ddd !important; }
+  .modal-foot { display: none !important; }
+}

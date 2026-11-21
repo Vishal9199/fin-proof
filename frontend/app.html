@@ -28,6 +28,7 @@
                accept=".csv,.txt,.pdf,image/jpeg,image/png,image/webp,image/gif" />
         Upload pile
       </label>
+      <button type="button" id="dossier-nav-btn" class="btn-ghost dossier-nav-btn hidden" title="View Statutory Audit Certificate">📜 Audit Dossier</button>
       <button id="run-btn" class="run-btn" disabled>Reconcile</button>
     </div>
   </header>
@@ -109,6 +110,24 @@
     </div>
   </div>
 
+  <!-- Statutory Audit Dossier Modal (The External Auditor's Proof Pack) -->
+  <div id="audit-dossier-modal-overlay" class="modal-overlay hidden">
+    <div class="modal audit-dossier-modal" role="dialog" aria-modal="true" aria-labelledby="dossier-title">
+      <header class="modal-head cert-head">
+        <div>
+          <div class="cert-corp-name">ACME GLOBAL TECHNOLOGIES LTD. · INTERNAL FINANCIAL CONTROLS</div>
+          <h2 id="dossier-title">📜 Statutory Reconciliation Certificate & Audit Dossier</h2>
+        </div>
+        <button type="button" id="dossier-modal-close" class="icon-btn" title="Close">✕</button>
+      </header>
+      <div id="audit-dossier-body" class="audit-dossier-body"></div>
+      <footer class="modal-foot cert-foot">
+        <button type="button" id="print-dossier-btn" class="btn-primary">🖨️ Print / Save Statutory PDF</button>
+        <button type="button" id="dossier-modal-dismiss" class="btn-ghost">Close</button>
+      </footer>
+    </div>
+  </div>
+
   <div id="error-banner" class="error-banner hidden"></div>
 
   <div id="dropzone" class="dropzone">
@@ -137,6 +156,13 @@
       <h2>🔗 Reconciliation canvas</h2>
       <p class="panel-sub">Cross-source links, collapsed duplicates, and flagged conflicts.</p>
       <div id="drift-banner" class="drift-banner hidden"></div>
+      
+      <!-- Procure-to-Pay Lifecycle Matching (2-Way, 3-Way & 4-Way Clusters) -->
+      <div id="clusters-section" class="clusters-section hidden">
+        <h3 class="col-head clusters">Procure-to-Pay Lifecycle (3-Way & 4-Way Match Clusters)</h3>
+        <div id="clusters-list" class="clusters-list"></div>
+      </div>
+
       <div class="ledger-cols">
         <div>
           <h3 class="col-head posted">Posted ledger</h3>
@@ -171,7 +197,10 @@
       <div class="insight-badge">✨ AI Summary</div>
       <p id="ai-narrative"></p>
     </div>
-    <button id="export-btn" class="export-btn hidden" title="Download reconciled ledger as CSV">⬇ Export CSV</button>
+    <div class="summary-actions">
+      <button id="dossier-btn" class="export-btn dossier-btn hidden" title="View Statutory Reconciliation Certificate & Audit Pack">📜 Statutory Audit Pack</button>
+      <button id="export-btn" class="export-btn hidden" title="Download reconciled ledger as CSV">⬇ Export CSV</button>
+    </div>
   </footer>
 
   <section id="chat-panel" class="chat-panel hidden">

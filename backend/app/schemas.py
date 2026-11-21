@@ -33,6 +33,42 @@ class TxnState(str, Enum):
     QUARANTINE = "QUARANTINE"
 
 
+class RootCauseCode(str, Enum):
+    ERR_QTY_SHORT_SHIPMENT = "ERR_QTY_SHORT_SHIPMENT"
+    ERR_PRICE_VARIANCE = "ERR_PRICE_VARIANCE"
+    ERR_UNRECORDED_FEE = "ERR_UNRECORDED_FEE"
+    ERR_OCR_UNREADABLE = "ERR_OCR_UNREADABLE"
+    ERR_SCHEMA_DRIFT = "ERR_SCHEMA_DRIFT"
+    ERR_TIMING_DELAY = "ERR_TIMING_DELAY"
+    ERR_DUPLICATE_ENTRY = "ERR_DUPLICATE_ENTRY"
+    ERR_TAX_DISCREPANCY = "ERR_TAX_DISCREPANCY"
+
+
+class JournalEntry(BaseModel):
+    account_code: str
+    account_name: str
+    entry_type: Literal["DEBIT", "CREDIT"]
+    amount: Decimal
+    narration: str
+
+
+class ReconciliationCluster(BaseModel):
+    cluster_id: str
+    reference_no: str
+    cluster_type: Literal["4way_match", "3way_match", "2way_match", "retail_pair"]
+    status: Literal["CLEARED", "VARIANCE_FLAGGED", "PARTIALLY_MATCHED"]
+    vendor_merchant: str
+    ordered_amount: Optional[Decimal] = None
+    received_amount: Optional[Decimal] = None
+    invoiced_amount: Optional[Decimal] = None
+    settled_amount: Optional[Decimal] = None
+    net_variance: Decimal = Decimal("0.00")
+    root_cause_code: Optional[RootCauseCode] = None
+    adjusting_journal: list[JournalEntry] = Field(default_factory=list)
+    document_names: list[str] = Field(default_factory=list)
+    txn_ids: list[str] = Field(default_factory=list)
+
+
 class FieldConfidence(BaseModel):
     value: float = Field(ge=0.0, le=1.0)
     method: str  # "self_consistency" | "schema" | "ocr_agreement" | "mock" | "deterministic_rule"
@@ -55,6 +91,8 @@ class Transaction(BaseModel):
     reference_no: Optional[str] = None    # e.g. PO-8841, INV-992, UTR reference
     discrepancy: Optional[dict] = None    # Structured {what, where, how_to_resolve, delta, variance_pct}
     audit_hash: Optional[str] = None      # Cryptographic SHA-256 seal for tamper-evidence
+    root_cause_code: Optional[RootCauseCode] = None
+    adjusting_journal: list[JournalEntry] = Field(default_factory=list)
 
     @field_validator("amount")
     @classmethod
@@ -101,6 +139,7 @@ class MatchLink(BaseModel):
     detail: str
     variance_amount: Optional[Decimal] = None
     variance_percent: Optional[float] = None
+    root_cause_code: Optional[RootCauseCode] = None
 
 
 class RunResult(BaseModel):
@@ -108,10 +147,12 @@ class RunResult(BaseModel):
     posted: list[Transaction] = Field(default_factory=list)
     quarantined: list[Transaction] = Field(default_factory=list)
     links: list[MatchLink] = Field(default_factory=list)
+    clusters: list[ReconciliationCluster] = Field(default_factory=list)
     total_posted_amount: Decimal = Decimal("0")
     documents: int = 0
     duration_ms: int = 0
     narrative: Optional[str] = None                    # AI-generated summary paragraph
     categories_summary: dict[str, float] = Field(default_factory=dict)  # {category: total_amount}
     audit_seal: Optional[str] = None                   # SHA-256 seal of the posted ledger
+    audit_dossier: Optional[dict] = None               # Statutory reconciliation certificate & audit pack
     workspace_mode: str = "general"                    # active reconciliation profile

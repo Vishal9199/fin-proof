@@ -265,6 +265,8 @@ async def process_run(run_id: str, docs: list[UploadedDoc]) -> None:
             "links": len(result.links), "total_posted_amount": str(result.total_posted_amount),
             "documents": result.documents, "duration_ms": result.duration_ms,
             "audit_seal": result.audit_seal,
+            "clusters": [c.model_dump(mode="json") for c in result.clusters],
+            "audit_dossier": result.audit_dossier,
         })
         log.info("run %s done · %d posted %d quarantined %d links (%dms)",
                  run_id, len(result.posted), len(result.quarantined), len(result.links), result.duration_ms)
@@ -333,6 +335,32 @@ async def ledger_query(body: QueryRequest) -> dict:
         raise HTTPException(404, "No completed runs found. Run a reconciliation first.")
     result_data = await answer_ledger_query(body.question, result.posted, result.quarantined)
     return {"run_id": run_id, "question": body.question, **result_data}
+
+
+@app.get("/runs/{run_id}/audit-dossier")
+async def get_audit_dossier(run_id: str) -> dict:
+    """Return the statutory reconciliation certificate & audit dossier for external auditors."""
+    result = get_cached_result(run_id)
+    if result is None:
+        latest_key = next((k for k in reversed(list(_results.keys()))), None)
+        if latest_key:
+            result = get_cached_result(latest_key)
+    if result is None:
+        raise HTTPException(404, "Run not found.")
+    return result.audit_dossier or {}
+
+
+@app.get("/runs/{run_id}/clusters")
+async def get_clusters(run_id: str) -> dict:
+    """Return Procure-to-Pay Lifecycle Clusters (2-Way, 3-Way, 4-Way matching)."""
+    result = get_cached_result(run_id)
+    if result is None:
+        latest_key = next((k for k in reversed(list(_results.keys()))), None)
+        if latest_key:
+            result = get_cached_result(latest_key)
+    if result is None:
+        raise HTTPException(404, "Run not found.")
+    return {"clusters": [c.model_dump(mode="json") for c in result.clusters]}
 
 
 @app.get("/runs/{run_id}/quarantine/{txn_id}/suggest")

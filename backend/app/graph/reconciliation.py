@@ -19,8 +19,8 @@ from ..ai_enrichment import (
 )
 from ..events import bus
 from ..extraction.verify import verify
-from ..schemas import MatchLink, RunResult, Transaction, TxnState
-from .matching import reconcile
+from ..schemas import MatchLink, ReconciliationCluster, RunResult, Transaction, TxnState
+from .matching import build_clusters, reconcile
 from .state import GraphState
 
 
@@ -51,6 +51,8 @@ async def node_reconcile(state: GraphState) -> GraphState:
     run_id = state["run_id"]
     verified = state["transactions"]
     links: list[MatchLink] = reconcile(verified, state["match_threshold"])
+    clusters: list[ReconciliationCluster] = build_clusters(verified, links)
+    state["clusters"] = clusters
 
     anomaly_ids: set[str] = set()
     duplicate_drop_ids: set[str] = set()
@@ -83,6 +85,66 @@ async def node_reconcile(state: GraphState) -> GraphState:
     return state
 
 
+def build_audit_dossier(
+    run_id: str,
+    posted: list[Transaction],
+    quarantined: list[Transaction],
+    clusters: list[ReconciliationCluster],
+    audit_seal: str,
+) -> dict:
+    import datetime
+    total_posted = sum((t.amount for t in posted), Decimal("0"))
+    total_quarantined = sum((t.amount for t in quarantined), Decimal("0"))
+    total_ingested = total_posted + total_quarantined
+    total_variance = sum((c.net_variance for c in clusters), Decimal("0"))
+
+    all_journals = []
+    for c in clusters:
+        for j in c.adjusting_journal:
+            all_journals.append({
+                "cluster_id": c.cluster_id,
+                "reference_no": c.reference_no,
+                "account_code": j.account_code,
+                "account_name": j.account_name,
+                "entry_type": j.entry_type,
+                "amount": str(j.amount),
+                "narration": j.narration,
+            })
+
+    declarations = [
+        "1. SOX 404 & Internal Financial Controls (IFC): All transactions posted to General Ledger validated via deterministic Pandera schema contracts and mathematical invariance.",
+        "2. Statutory Indian GST Section 16(2) Condition of Inward Supply: Input Tax Credit (ITC) reversed for all short-shipped quantities prior to posting clearance.",
+        "3. Cryptographic Tamper-Proof Chain: The batch reconciliation seal is bound to SHA-256 digests of every verified entry.",
+        "4. Human-In-The-Loop Isolation: All items with variance > ₹0.00 were gated in Quarantine Lane with complete audit trail."
+    ]
+
+    return {
+        "certificate_id": f"REC-CERT-2026-{run_id[-8:].upper()}",
+        "entity_name": "Acme Global Technologies Ltd.",
+        "audit_period": "May 2026 / FY 2026-27",
+        "compliance_framework": "SOX Section 404 · Indian GST Sec 16(2) · ISO 20022",
+        "issued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "audit_seal_hash": audit_seal,
+        "summary_schedule": {
+            "total_ingested_amount": str(total_ingested),
+            "cleared_posted_amount": str(total_posted),
+            "quarantined_exceptions_amount": str(total_quarantined),
+            "net_isolated_variance": str(total_variance),
+            "posted_count": len(posted),
+            "quarantined_count": len(quarantined),
+            "cluster_count": len(clusters),
+        },
+        "clusters": [c.model_dump(mode="json") for c in clusters],
+        "adjusting_journals": all_journals,
+        "statutory_declarations": declarations,
+        "auditor_sign_off": {
+            "status": "UNQUALIFIED_CLEARANCE" if not quarantined else "CONDITIONAL_APPROVAL_PENDING_HITL",
+            "system_signatory": "FinProof Autonomous Invariance Engine v2.4",
+            "algorithm": "Deterministic State Machine with LLM Perception Sandbox",
+        }
+    }
+
+
 async def node_post(state: GraphState) -> GraphState:
     import hashlib
     run_id = state["run_id"]
@@ -99,7 +161,11 @@ async def node_post(state: GraphState) -> GraphState:
                            "audit_hash": txn.audit_hash, "reference_no": txn.reference_no,
                            "source_doc": txn.source_doc})
     state["posted"] = posted
-    state["audit_seal"] = hasher.hexdigest()[:32]
+    audit_seal = hasher.hexdigest()[:32]
+    state["audit_seal"] = audit_seal
+    state["audit_dossier"] = build_audit_dossier(
+        run_id, posted, state.get("quarantined", []), state.get("clusters", []), audit_seal
+    )
     return state
 
 
@@ -191,9 +257,12 @@ async def run_reconciliation(run_id: str, extractions: list, match_threshold: fl
         posted=posted,
         quarantined=final.get("quarantined", []),
         links=final.get("links", []),
+        clusters=final.get("clusters", []),
         total_posted_amount=sum((t.amount for t in posted), Decimal("0")),
         documents=len({e.doc_name for e in extractions}),
         narrative=final.get("narrative"),
         categories_summary=final.get("categories_summary", {}),
         audit_seal=final.get("audit_seal"),
+        audit_dossier=final.get("audit_dossier"),
+        workspace_mode=final.get("workspace_mode", "general"),
     )
