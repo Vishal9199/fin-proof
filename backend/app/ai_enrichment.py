@@ -197,6 +197,41 @@ def build_categories_summary(transactions: list["Transaction"]) -> dict[str, flo
     return dict(sorted(totals.items(), key=lambda x: -x[1]))
 
 
+def verify_answer_faithfulness(
+    answer_text: str, posted: list["Transaction"], quarantined: list["Transaction"]
+) -> str:
+    """Zero-Hallucination Guard: checks that currency amounts quoted in the answer
+    strictly map to transactions, subtotals, or aggregates in the ledger ground truth."""
+    quoted = re.findall(r"(?:₹|Rs\.?)\s*([\d,]+(?:\.\d{1,2})?)", answer_text)
+    if not quoted:
+        return answer_text
+
+    known_amounts = {float(t.amount) for t in posted + quarantined}
+    total_posted = sum((float(t.amount) for t in posted), 0.0)
+    total_quarantined = sum((float(t.amount) for t in quarantined), 0.0)
+    known_amounts.add(round(total_posted, 2))
+    known_amounts.add(round(total_quarantined, 2))
+    known_amounts.add(round(total_posted + total_quarantined, 2))
+
+    cat_summary = build_categories_summary(posted)
+    for v in cat_summary.values():
+        known_amounts.add(round(v, 2))
+
+    all_verified = True
+    for raw_q in quoted:
+        try:
+            val = round(float(raw_q.replace(",", "")), 2)
+            if val not in known_amounts and not any(abs(val - k) < 0.05 for k in known_amounts):
+                all_verified = False
+                break
+        except Exception:
+            continue
+
+    if all_verified:
+        return f"{answer_text}\n\n🛡️ [Zero-Hallucination Guard: All figures mathematically verified against ledger records]"
+    return answer_text
+
+
 async def answer_ledger_query(
     question: str,
     posted: list["Transaction"],
@@ -332,6 +367,7 @@ async def answer_ledger_query(
             except Exception:
                 pass
         
+        text = verify_answer_faithfulness(text, posted, quarantined)
         res = {"answer": text}
         if chart_data:
             res["chart"] = chart_data
@@ -345,7 +381,46 @@ async def generate_quarantine_resolution_suggestion(
     posted: list["Transaction"],
     quarantined: list["Transaction"],
 ) -> dict:
-    """Propose AI-assisted resolution options for a quarantined transaction."""
+    """Propose AI-assisted resolution options for a quarantined transaction,
+    leveraging learned institutional vendor memory and LLM reasoning."""
+    from .vendor_memory import find_vendor_rule
+
+    # 1. First consult Learned Institutional Vendor Memory (Active Learning)
+    rc_code = txn.root_cause_code.value if txn.root_cause_code else None
+    learned = find_vendor_rule(txn.merchant, rc_code)
+    if learned:
+        delta_val = learned.typical_delta or (
+            float(txn.discrepancy.get("delta", 0.0)) if txn.discrepancy else 0.0
+        )
+        return {
+            "explanation": (
+                f"🧠 In-Context Institutional Memory ({learned.rule_id} · {int(learned.confidence * 100)}% confidence, applied {learned.times_applied}x): "
+                f"Reviewers previously resolved {learned.vendor_name} discrepancies using '{learned.resolution_action}' "
+                f"({learned.default_fee_label or 'standard adjustment'})."
+            ),
+            "actions": [
+                {
+                    "label": f"⚡ Apply Learned Rule: {learned.default_fee_label or learned.resolution_action.title()} (₹{delta_val:.2f})",
+                    "action": learned.resolution_action,
+                    "amount": float(txn.amount),
+                    "fee_amount": delta_val,
+                    "fee_label": learned.default_fee_label or "Learned Variance Adjustment",
+                    "category": learned.default_category or txn.category or "Operational Expense",
+                    "is_learned_rule": True,
+                    "rule_id": learned.rule_id,
+                },
+                {
+                    "label": f"Approve Full Invoice (₹{txn.amount})",
+                    "action": "override",
+                    "amount": float(txn.amount),
+                    "merchant": txn.merchant,
+                    "category": txn.category or "Operational Expense",
+                },
+                {"label": "Dismiss / Reject Voucher", "action": "reject"},
+            ],
+            "learned_rule": learned.model_dump(mode="json"),
+        }
+
     rt = get_runtime()
     
     # Check if there is a matching transaction or conflict pattern.

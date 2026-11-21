@@ -577,9 +577,13 @@ async function suggestResolve(cardEl, txn, suggestBtn) {
       </button>`;
     }).join("");
     
+    const learnedBadge = data.learned_rule
+      ? `<span class="badge-root-cause" style="background: rgba(0, 180, 216, 0.2); color: var(--accent); border: 1px solid var(--accent); margin-left: 6px;">🧠 ACTIVE LEARNING RULE</span>`
+      : "";
+
     suggestionBox.innerHTML = `
-      <div class="ai-suggestion-title">💡 AI Recommendation</div>
-      <div class="ai-suggestion-text">${data.explanation}</div>
+      <div class="ai-suggestion-title">💡 AI Recommendation ${learnedBadge}</div>
+      <div class="ai-suggestion-text">${escapeHtml(data.explanation)}</div>
       <div class="ai-action-buttons">${buttonsHtml}</div>
     `;
     

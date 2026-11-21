@@ -664,7 +664,24 @@ async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest
     result.categories_summary = build_categories_summary(result.posted)
     _remember(_results, run_id, result)
     _save_run_to_disk(run_id, result)
-    
+
+    # Active Learning: Persist resolution pattern into Vendor Memory Store
+    from .vendor_memory import learn_from_resolution
+    learned_rule = None
+    try:
+        learned_rule = learn_from_resolution(
+            merchant=txn.merchant,
+            action=body.action,
+            amount=float(txn.amount),
+            fee_amount=body.fee_amount,
+            fee_label=body.fee_label,
+            category=txn.category or body.category,
+            root_cause_code=txn.root_cause_code.value if txn.root_cause_code else None,
+            run_id=run_id,
+        )
+    except Exception as e:
+        log.warning("failed to record learned vendor rule: %s", e)
+
     return {
         "ok": True,
         "run_id": run_id,
@@ -673,7 +690,16 @@ async def resolve_quarantine_item(run_id: str, txn_id: str, body: ResolveRequest
         "total_posted_amount": str(result.total_posted_amount),
         "resolved_txn": txn.model_dump(mode="json") if body.action != "reject" else None,
         "balancing_entry": fee_txn.model_dump(mode="json") if fee_txn else None,
+        "learned_rule": learned_rule.model_dump(mode="json") if learned_rule else None,
     }
+
+
+@app.get("/vendor-rules")
+async def get_vendor_rules() -> dict:
+    """Return all active organizational rules learned via HITL active learning."""
+    from .vendor_memory import load_vendor_rules
+    rules = load_vendor_rules()
+    return {"rules": [r.model_dump(mode="json") for r in rules]}
 
 
 # ── Sample data (for dashboard scenario buttons) ─────────────────────────────

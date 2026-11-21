@@ -32,6 +32,30 @@ _PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
     ("digits", re.compile(r"\d{9,}")),                               # acct/card/ref numbers
 )
 
+# ── Adversarial Prompt Injection Firewall (Indirect Prompt Injection Defense) ──
+_INJECTION_PATTERNS: tuple[tuple[str, re.Pattern], ...] = (
+    ("ignore_instructions", re.compile(r"\bignore\s+(?:all\s+)?(?:previous|prior)\s+(?:instructions|prompts|rules|constraints)\b", re.I)),
+    ("system_override", re.compile(r"\b(?:system\s+override|admin\s+override|root\s+command)\b", re.I)),
+    ("bypass_recon", re.compile(r"\b(?:bypass|skip|disable)\s+(?:the\s+)?(?:matching|verification|quarantine|reconciliation|gate)\b", re.I)),
+    ("fake_persona", re.compile(r"\byou\s+are\s+now\s+(?:an?\s+)?(?:unrestricted|admin|developer\s+mode|dan)\b", re.I)),
+    ("auto_approve_fraud", re.compile(r"\bapprove\s+(?:payment|invoice|voucher)\s+without\s+(?:matching|check|verification)\b", re.I)),
+    ("system_tags", re.compile(r"<\/?(?:system|instruction|prompt)[^>]*>|\[SYSTEM\]|###\s*SYSTEM", re.I)),
+)
+
+
+def sanitize_prompt_injection(text: str) -> tuple[str, list[str]]:
+    """Detect and sanitize indirect prompt injection attacks embedded in financial documents."""
+    detected: list[str] = []
+    sanitized = text
+
+    for label, pattern in _INJECTION_PATTERNS:
+        matches = pattern.findall(sanitized)
+        if matches:
+            detected.append(f"INJECTION_ATTEMPT:{label}({len(matches)})")
+            sanitized = pattern.sub(f"[SECURITY_REDACTED_INJECTION_ATTEMPT:{label.upper()}]", sanitized)
+
+    return sanitized, detected
+
 
 def _mask(token: str) -> str:
     """Keep the last 4 characters so a human can still cross-reference."""
@@ -40,9 +64,14 @@ def _mask(token: str) -> str:
 
 
 def redact_text(text: str) -> tuple[str, int]:
-    """Return (redacted_text, number_of_redactions)."""
+    """Return (redacted_text, number_of_redactions). Strips PII and neutralizes injection attempts."""
     count = 0
 
+    # 1. Neutralize any prompt injection attempts first
+    text, injections = sanitize_prompt_injection(text)
+    count += len(injections)
+
+    # 2. Redact sensitive personal/financial identifiers
     def _sub(m: re.Match) -> str:
         nonlocal count
         count += 1
