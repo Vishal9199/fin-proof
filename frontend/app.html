@@ -182,65 +182,240 @@
     <ul id="file-list" class="file-list"></ul>
   </div>
 
-  <main class="grid">
-    <!-- Panel 1: parallel agent grid -->
-    <section class="panel">
-      <h2>🤖 Extraction agents <span id="agent-count" class="count">0</span></h2>
-      <p class="panel-sub">Each document gets its own worker, run in parallel.</p>
-      <div id="agent-grid" class="agent-grid"></div>
-    </section>
+  <!-- High-Tech Navigation View Switcher (De-clutter & Focus) -->
+  <nav class="view-tabs-bar">
+    <button type="button" class="view-tab active" data-tab="view-war-room" id="btn-tab-war-room">
+      <span class="tab-icon">🤖</span>
+      <span class="tab-title">Autonomous Agent War Room</span>
+      <span class="tab-badge live" id="tab-swarm-badge">Live Swarm</span>
+    </button>
+    <button type="button" class="view-tab" data-tab="view-ledger" id="btn-tab-ledger">
+      <span class="tab-icon">📊</span>
+      <span class="tab-title">Financial Ledger & Lifecycle Clusters</span>
+      <span class="tab-badge" id="tab-ledger-badge">0 items</span>
+    </button>
+    <button type="button" class="view-tab" data-tab="view-recovery" id="btn-tab-recovery">
+      <span class="tab-icon">⚖️</span>
+      <span class="tab-title">Dispute Recovery & Proof Dossiers</span>
+      <span class="tab-badge" id="tab-recovery-badge">Legal</span>
+    </button>
+  </nav>
 
-    <!-- Panel 2: reconciliation canvas -->
-    <section class="panel">
-      <h2>🔗 Reconciliation canvas</h2>
-      <p class="panel-sub">Cross-source links, collapsed duplicates, and flagged conflicts.</p>
+  <main class="main-content-area">
+    <!-- VIEW 1: AUTONOMOUS AGENT WAR ROOM (HERO AI CENTER) -->
+    <div id="view-war-room" class="view-tab-pane">
+      <!-- Live Pipeline Step Tracker -->
+      <div class="pipeline-tracker">
+        <div class="pipeline-step active" id="pipe-step-1">
+          <span class="pipe-num">1</span>
+          <div class="pipe-info">
+            <span class="pipe-title">Perception Workers</span>
+            <span class="pipe-sub">Vision & OCR Normalization</span>
+          </div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+        <div class="pipeline-step" id="pipe-step-2">
+          <span class="pipe-num">2</span>
+          <div class="pipe-info">
+            <span class="pipe-title">Invariance Verification</span>
+            <span class="pipe-sub">SOX 404 & Schema Gate</span>
+          </div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+        <div class="pipeline-step" id="pipe-step-3">
+          <span class="pipe-num">3</span>
+          <div class="pipe-info">
+            <span class="pipe-title">ReAct Swarm Investigation</span>
+            <span class="pipe-sub">Tool Execution & Hypotheses</span>
+          </div>
+        </div>
+        <div class="pipeline-arrow">➔</div>
+        <div class="pipeline-step" id="pipe-step-4">
+          <span class="pipe-num">4</span>
+          <div class="pipe-info">
+            <span class="pipe-title">Settlement & Audit Seal</span>
+            <span class="pipe-sub">Cryptographic Ledger Lock</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live AI Agent Swarm Roster Cards -->
+      <div class="agent-roster-grid">
+        <div class="agent-card" id="roster-perception">
+          <div class="agent-card-head">
+            <div class="agent-avatar vision">👁️</div>
+            <div>
+              <div class="agent-role">Perception Agents</div>
+              <div class="agent-name">Document Vision & OCR</div>
+            </div>
+            <span class="agent-pill ready" id="roster-perception-pill">Ready</span>
+          </div>
+          <div class="agent-card-desc">Processes heterogeneous PDFs, bank CSVs, and UPI receipts in parallel into verified schemas.</div>
+          <div class="agent-card-metrics">
+            <span>Docs: <b id="roster-docs-count">0</b></span>
+            <span>Latency: <b id="roster-perception-lat">0ms</b></span>
+            <span>Architecture: <b id="roster-perception-mode">Parallel</b></span>
+          </div>
+        </div>
+
+        <div class="agent-card" id="roster-arbiter">
+          <div class="agent-card-head">
+            <div class="agent-avatar arbiter">🛡️</div>
+            <div>
+              <div class="agent-role">Invariance Arbiter</div>
+              <div class="agent-name">Deterministic FSM Guard</div>
+            </div>
+            <span class="agent-pill ready" id="roster-arbiter-pill">Guarded</span>
+          </div>
+          <div class="agent-card-desc">Validates mathematical continuity ($0.00 float tolerance) and cryptographic ledger hash chains.</div>
+          <div class="agent-card-metrics">
+            <span>Float Tolerance: <b>₹0.00</b></span>
+            <span>Compliance: <b>SOX 404</b></span>
+            <span>Ledger Seal: <b id="roster-arbiter-seal">—</b></span>
+          </div>
+        </div>
+
+        <div class="agent-card" id="roster-investigator">
+          <div class="agent-card-head">
+            <div class="agent-avatar investigator">🔍</div>
+            <div>
+              <div class="agent-role">Autonomous Agent</div>
+              <div class="agent-name">Forensic Investigator</div>
+            </div>
+            <span class="agent-pill idle" id="roster-investigator-pill">Standby</span>
+          </div>
+          <div class="agent-card-desc">Executes ReAct loops, testing TDS (Sec 194C/J), cash discounts (2/10 net 30), and batch settlements.</div>
+          <div class="agent-card-metrics">
+            <span>Pattern: <b>ReAct Swarm</b></span>
+            <span>Domain Tools: <b>5 Exact ALU</b></span>
+            <span>Breaks Solved: <b id="roster-breaks-count">0</b></span>
+          </div>
+        </div>
+
+        <div class="agent-card" id="roster-dispute">
+          <div class="agent-card-head">
+            <div class="agent-avatar dispute">⚖️</div>
+            <div>
+              <div class="agent-role">Autonomous Agent</div>
+              <div class="agent-name">Dispute Remediation</div>
+            </div>
+            <span class="agent-pill idle" id="roster-dispute-pill">Standby</span>
+          </div>
+          <div class="agent-card-desc">Drafts legally binding GST Section 34 Debit Notes and recovery claims under Indian Contract Act Sec 73.</div>
+          <div class="agent-card-metrics">
+            <span>Statute: <b>CGST Rule 53</b></span>
+            <span>ITC Protection: <b>Sec 16(2)</b></span>
+            <span>Dossiers: <b id="roster-dispute-count">0</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cinematic Live Autonomous ReAct Swarm Console -->
+      <section class="panel swarm-hero-panel">
+        <div class="swarm-hero-head">
+          <div class="swarm-hero-title-group">
+            <span class="agent-pulse-dot active"></span>
+            <div>
+              <h2>🧠 Autonomous Swarm Reasoning & ReAct Execution Console</h2>
+              <p class="panel-sub">Real-time Thought ➜ Tool Execution ➜ Observation stream as agents audit breaks.</p>
+            </div>
+          </div>
+          <div class="swarm-head-actions">
+            <span id="agent-active-badge" class="agent-active-badge idle">Swarm Standby</span>
+          </div>
+        </div>
+
+        <div class="agent-swarm-section full-width">
+          <div id="agent-reasoning-log" class="agent-reasoning-log hero-log">
+            <div class="agent-empty-hint">Autonomous agents stand by. Run reconciliation to watch the ReAct swarm formulate hypotheses, call statutory tools, and resolve breaks in real time…</div>
+          </div>
+        </div>
+
+        <!-- Telemetry & Extraction Grid in War Room -->
+        <div class="war-room-bottom-grid">
+          <div>
+            <h3 class="col-head">👁️ Ingested Perception Workers (<span id="agent-count">0</span>)</h3>
+            <div id="agent-grid" class="agent-grid"></div>
+          </div>
+          <div>
+            <h3 class="col-head">📊 AgentOps Telemetry & Trace Spans</h3>
+            <div class="metrics">
+              <div class="metric"><span id="m-spans">0</span><label>spans</label></div>
+              <div class="metric"><span id="m-latency">0<small>ms</small></span><label>total latency</label></div>
+              <div class="metric"><span id="m-cost">$0.00</span><label>est. cost</label></div>
+              <div class="metric"><span id="m-faith">—</span><label>avg faithfulness</label></div>
+            </div>
+            <div id="trace-log" class="trace-log compact"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- VIEW 2: RECONCILIATION CANVAS & FINANCIAL LEDGER -->
+    <div id="view-ledger" class="view-tab-pane hidden">
       <div id="drift-banner" class="drift-banner hidden"></div>
       
       <!-- Procure-to-Pay Lifecycle Matching (2-Way, 3-Way & 4-Way Clusters) -->
-      <div id="clusters-section" class="clusters-section hidden">
-        <h3 class="col-head clusters">Procure-to-Pay Lifecycle (3-Way & 4-Way Match Clusters)</h3>
-        <div id="clusters-list" class="clusters-list"></div>
-      </div>
+      <section class="panel mb-4">
+        <div id="clusters-section" class="clusters-section">
+          <h2 class="col-head clusters">Procure-to-Pay Lifecycle (3-Way & 4-Way Match Clusters)</h2>
+          <p class="panel-sub">End-to-end audit: Purchase Order (PO) ⇄ Goods Receipt (GRN) ⇄ Invoice ⇄ Bank Disbursement.</p>
+          <div id="clusters-list" class="clusters-list"></div>
+        </div>
+      </section>
 
-      <div class="ledger-cols">
-        <div>
-          <h3 class="col-head posted">Posted ledger</h3>
+      <!-- Ledger Columns: Posted vs Quarantine -->
+      <div class="ledger-cols-wide">
+        <section class="panel">
+          <div class="panel-header-row">
+            <h2 class="col-head posted">✓ Posted General Ledger</h2>
+            <span class="badge-live">Mathematically Invariant</span>
+          </div>
+          <p class="panel-sub">Transactions cleared through deterministic Pandera contracts with zero variance.</p>
           <div id="posted-list" class="card-list"></div>
-        </div>
-        <div>
-          <h3 class="col-head quarantine">Quarantine lane</h3>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header-row">
+            <h2 class="col-head quarantine">⚠ Quarantine Review Lane</h2>
+            <span class="badge-mock">Isolated for Review</span>
+          </div>
+          <p class="panel-sub">Flagged discrepancies investigated by the AI swarm with 1-click human intervention.</p>
           <div id="quarantine-list" class="card-list"></div>
-        </div>
-      </div>
-      <h3 class="col-head links">Links</h3>
-      <div id="links-list" class="card-list"></div>
-    </section>
-
-    <!-- Panel 3: AgentOps & Autonomous Swarm -->
-    <section class="panel">
-      <h2>🧠 Autonomous Swarm & AgentOps</h2>
-      <p class="panel-sub">ReAct loop (Thought ➜ Tool Execution ➜ Observation) & trace metrics.</p>
-      <div class="metrics">
-        <div class="metric"><span id="m-spans">0</span><label>spans</label></div>
-        <div class="metric"><span id="m-latency">0<small>ms</small></span><label>total latency</label></div>
-        <div class="metric"><span id="m-cost">$0.00</span><label>est. cost</label></div>
-        <div class="metric"><span id="m-faith">—</span><label>avg faithfulness</label></div>
+        </section>
       </div>
 
-      <!-- Live Autonomous ReAct Swarm Console -->
-      <div class="agent-swarm-section">
-        <div class="agent-swarm-head">
-          <span class="agent-pulse-dot"></span>
-          <span class="agent-swarm-title">Autonomous ReAct Swarm</span>
-          <span id="agent-active-badge" class="agent-active-badge idle">Standby</span>
+      <section class="panel mt-4">
+        <h2 class="col-head links">Cross-Source Match Links & Duplicate Suppressions</h2>
+        <div id="links-list" class="card-list"></div>
+      </section>
+    </div>
+
+    <!-- VIEW 3: DISPUTE RECOVERY & STATUTORY PROOF PACK -->
+    <div id="view-recovery" class="view-tab-pane hidden">
+      <div class="recovery-hero-grid">
+        <div class="recovery-card">
+          <div class="recovery-card-icon">📄</div>
+          <h3>GST Section 34 Statutory Debit Notes</h3>
+          <p>Autonomously compiled legal debit claims under Rule 53 of the CGST Rules 2017 with itemized CGST/SGST/IGST tax schedules.</p>
+          <button type="button" class="btn-primary" id="btn-quick-debit-note">📄 View Active Debit Notes</button>
         </div>
-        <div id="agent-reasoning-log" class="agent-reasoning-log">
-          <div class="agent-empty-hint">Autonomous agents stand by for reconciliation breaks and tax/discount variances…</div>
+
+        <div class="recovery-card">
+          <div class="recovery-card-icon">📜</div>
+          <h3>SOX 404 & GST Sec 16(2) Audit Certificate</h3>
+          <p>Cryptographically sealed proof pack with SHA-256 Merkle root, general ledger adjusting entries, and external auditor declarations.</p>
+          <button type="button" class="btn-primary" id="btn-quick-audit-dossier">📜 View Statutory Certificate</button>
+        </div>
+
+        <div class="recovery-card">
+          <div class="recovery-card-icon">🧠</div>
+          <h3>Active Learning Institutional Memory</h3>
+          <p>Persistent vendor dispute rules retained from human controller resolutions for few-shot in-context auto-remediation.</p>
+          <button type="button" class="btn-ghost" id="btn-quick-rules">🧠 Open Memory Repository</button>
         </div>
       </div>
-
-      <div id="trace-log" class="trace-log"></div>
-    </section>
+    </div>
   </main>
 
   <footer id="summary" class="summary hidden">

@@ -948,6 +948,379 @@ body {
   opacity: 0.9;
 }
 
+/* ── High-Tech Navigation & Tabbed Architecture (De-clutter) ─────────────── */
+.view-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 28px 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  overflow-x: auto;
+}
+.view-tab {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 18px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+.view-tab:hover {
+  border-color: rgba(91, 140, 255, 0.4);
+  color: var(--text);
+  background: var(--panel-2);
+}
+.view-tab.active {
+  background: rgba(91, 140, 255, 0.12);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(91, 140, 255, 0.15);
+}
+.tab-icon {
+  font-size: 16px;
+}
+.tab-badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+.tab-badge.live {
+  background: rgba(0, 180, 216, 0.2);
+  color: #00b4d8;
+  border: 1px solid rgba(0, 180, 216, 0.4);
+  animation: pulse-badge 2s infinite ease-in-out;
+}
+@keyframes pulse-badge {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.main-content-area {
+  padding: 0 28px 28px;
+}
+.view-tab-pane {
+  display: block;
+}
+.view-tab-pane.hidden {
+  display: none !important;
+}
+
+/* ── Pipeline Tracker (4-Phase Operational Progress) ───────────────────────── */
+.pipeline-tracker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  gap: 12px;
+  overflow-x: auto;
+}
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  opacity: 0.4;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid transparent;
+  flex: 1;
+  min-width: 170px;
+}
+.pipeline-step.active {
+  opacity: 1;
+  background: rgba(0, 180, 216, 0.1);
+  border-color: rgba(0, 180, 216, 0.4);
+  box-shadow: 0 0 15px rgba(0, 180, 216, 0.12);
+}
+.pipeline-step.completed {
+  opacity: 0.9;
+  background: rgba(6, 214, 160, 0.08);
+  border-color: rgba(6, 214, 160, 0.3);
+}
+.pipe-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--muted);
+}
+.pipeline-step.active .pipe-num {
+  background: #00b4d8;
+  color: #0b0f1a;
+  border-color: #00b4d8;
+  box-shadow: 0 0 10px rgba(0, 180, 216, 0.5);
+}
+.pipeline-step.completed .pipe-num {
+  background: #06d6a0;
+  color: #0b0f1a;
+  border-color: #06d6a0;
+}
+.pipe-info {
+  display: flex;
+  flex-direction: column;
+}
+.pipe-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.pipeline-step.active .pipe-title {
+  color: #00b4d8;
+}
+.pipeline-step.completed .pipe-title {
+  color: #06d6a0;
+}
+.pipe-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+.pipeline-arrow {
+  color: var(--faint);
+  font-size: 14px;
+}
+
+/* ── Live Agent Swarm Roster Cards ───────────────────────────────────────── */
+.agent-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1200px) {
+  .agent-roster-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 680px) {
+  .agent-roster-grid { grid-template-columns: 1fr; }
+}
+.agent-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.agent-card:hover {
+  border-color: rgba(91, 140, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -10px rgba(0, 0, 0, 0.5);
+}
+.agent-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.agent-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.agent-avatar.vision { border-color: rgba(91, 140, 255, 0.4); background: rgba(91, 140, 255, 0.1); }
+.agent-avatar.arbiter { border-color: rgba(160, 196, 255, 0.4); background: rgba(160, 196, 255, 0.1); }
+.agent-avatar.investigator { border-color: rgba(0, 180, 216, 0.4); background: rgba(0, 180, 216, 0.1); }
+.agent-avatar.dispute { border-color: rgba(255, 107, 53, 0.4); background: rgba(255, 107, 53, 0.1); }
+
+.agent-role {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.agent-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+.agent-pill {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.agent-pill.ready {
+  background: rgba(61, 220, 151, 0.12);
+  color: var(--green);
+  border: 1px solid rgba(61, 220, 151, 0.3);
+}
+.agent-pill.idle {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.agent-pill.active {
+  background: rgba(0, 180, 216, 0.2);
+  color: #00b4d8;
+  border: 1px solid #00b4d8;
+  animation: pulse-agent 1.5s infinite;
+}
+.agent-pill.done {
+  background: rgba(6, 214, 160, 0.15);
+  color: #06d6a0;
+  border: 1px solid #06d6a0;
+}
+@keyframes pulse-agent {
+  0%, 100% { box-shadow: 0 0 0 rgba(0, 180, 216, 0); }
+  50% { box-shadow: 0 0 10px rgba(0, 180, 216, 0.6); }
+}
+.agent-card-desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+  flex: 1;
+}
+.agent-card-metrics {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.agent-card-metrics b {
+  color: var(--text);
+}
+
+/* ── Swarm Hero Panel (ReAct Console Spotlight) ─────────────────────────── */
+.swarm-hero-panel {
+  margin-bottom: 24px;
+  border: 1px solid rgba(91, 140, 255, 0.25);
+  background: radial-gradient(800px 400px at 50% 0%, rgba(19, 26, 46, 0.8) 0%, var(--panel) 100%);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.7);
+}
+.swarm-hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.swarm-hero-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.agent-swarm-section.full-width {
+  width: 100%;
+}
+.hero-log {
+  min-height: 260px;
+  max-height: 420px;
+  background: rgba(8, 9, 12, 0.75);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.war-room-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 900px) {
+  .war-room-bottom-grid { grid-template-columns: 1fr; }
+}
+.trace-log.compact {
+  max-height: 200px;
+}
+
+/* ── Ledger Layout (Spacious 2-Column Canvas) ────────────────────────────── */
+.ledger-cols-wide {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+@media (max-width: 1000px) {
+  .ledger-cols-wide { grid-template-columns: 1fr; }
+}
+.mb-4 { margin-bottom: 20px; }
+.mt-4 { margin-top: 20px; }
+
+/* ── Dispute Recovery Hero Grid ─────────────────────────────────────────── */
+.recovery-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 10px 0;
+}
+@media (max-width: 960px) {
+  .recovery-hero-grid { grid-template-columns: 1fr; }
+}
+.recovery-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.recovery-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(91, 140, 255, 0.4);
+}
+.recovery-card-icon {
+  font-size: 32px;
+}
+.recovery-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-family: var(--font-display);
+}
+.recovery-card p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  flex: 1;
+}
+
 /* ── Print Styles for Statutory Dossier & Debit Notes ────────────────────── */
 @media print {
   body * { visibility: hidden; }

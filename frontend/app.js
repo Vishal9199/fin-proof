@@ -39,6 +39,40 @@ document.querySelectorAll(".ws-pill").forEach((pill) => {
   });
 });
 
+// ── Navigation View Tabs & Operational Pipeline Tracker ──────────────────
+function switchViewTab(tabId) {
+  document.querySelectorAll(".view-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.tab === tabId);
+  });
+  document.querySelectorAll(".view-tab-pane").forEach((pane) => {
+    pane.classList.toggle("hidden", pane.id !== tabId);
+  });
+}
+
+document.querySelectorAll(".view-tab").forEach((tab) => {
+  tab.addEventListener("click", () => switchViewTab(tab.dataset.tab));
+});
+
+function setPipelineStep(step) {
+  for (let i = 1; i <= 4; i++) {
+    const el = $(`pipe-step-${i}`);
+    if (!el) continue;
+    if (i < step) {
+      el.className = "pipeline-step completed";
+    } else if (i === step) {
+      el.className = "pipeline-step active";
+    } else {
+      el.className = "pipeline-step";
+    }
+  }
+}
+
+function updateLedgerTabBadge() {
+  const total = (ledgerState.posted ? ledgerState.posted.length : 0) + (ledgerState.quarantined ? ledgerState.quarantined.length : 0);
+  const badge = $("tab-ledger-badge");
+  if (badge) badge.textContent = `${total} items`;
+}
+
 // ── Health badge ───────────────────────────────────────────────────────────
 const PROVIDER_SHORT = { anthropic: "Claude", google: "Gemini", openai: "GPT", mock: "Mock" };
 
@@ -133,6 +167,12 @@ $("run-btn").addEventListener("click", startRun);
 
 async function startRun() {
   resetPanels(); clearError(); $("run-btn").disabled = true;
+  switchViewTab("view-war-room");
+  setPipelineStep(1);
+  const pPill = $("roster-perception-pill");
+  if (pPill) { pPill.className = "agent-pill active"; pPill.textContent = "Active"; }
+  if ($("roster-docs-count")) $("roster-docs-count").textContent = (selectedFiles.length || 0).toString();
+  if ($("tab-swarm-badge")) { $("tab-swarm-badge").className = "tab-badge live"; $("tab-swarm-badge").textContent = "Live Swarm"; }
   const form = new FormData();
   selectedFiles.forEach((f) => form.append("files", f));
   let runId;
@@ -164,13 +204,33 @@ function streamRun(runId) {
   const on = (type, fn) => es.addEventListener(type, (e) => fn(JSON.parse(e.data)));
 
   es.onopen = () => { opened = true; };
-  on("run.started", () => {});
-  on("agent.cell.start", (p) => upsertCell(p.doc, "running"));
-  on("agent.cell.done",  (p) => upsertCell(p.doc, "done", p));
+  on("run.started", () => {
+    setPipelineStep(1);
+  });
+  on("agent.cell.start", (p) => {
+    upsertCell(p.doc, "running");
+    setPipelineStep(1);
+    const pill = $("roster-perception-pill");
+    if (pill) { pill.className = "agent-pill active"; pill.textContent = "Extracting..."; }
+  });
+  on("agent.cell.done",  (p) => {
+    upsertCell(p.doc, "done", p);
+    if ($("roster-perception-lat") && p.latency_ms) $("roster-perception-lat").textContent = `${p.latency_ms}ms`;
+  });
   on("trace", addTrace);
   on("drift", showDrift);
-  on("txn.posted", (p) => { ledgerState.posted.push(p); addCard("posted-list", "posted", p.normalized_merchant || p.merchant, `₹${p.amount}`, "Posted to ledger", false, p); });
-  on("txn.quarantined", (p) => { ledgerState.quarantined.push(p); addCard("quarantine-list", "quarantine", p.normalized_merchant || p.merchant, `⚠ ₹${p.amount}`, p.reason || p.quarantine_reason, false, p); });
+  on("txn.posted", (p) => {
+    ledgerState.posted.push(p);
+    addCard("posted-list", "posted", p.normalized_merchant || p.merchant, `₹${p.amount}`, "Posted to ledger", false, p);
+    setPipelineStep(2);
+    updateLedgerTabBadge();
+  });
+  on("txn.quarantined", (p) => {
+    ledgerState.quarantined.push(p);
+    addCard("quarantine-list", "quarantine", p.normalized_merchant || p.merchant, `⚠ ₹${p.amount}`, p.reason || p.quarantine_reason, false, p);
+    setPipelineStep(2);
+    updateLedgerTabBadge();
+  });
   on("txn.enriched", (p) => {
     // Update existing card with normalized name, category, and possibly a new reason
     const card = document.querySelector(`.card[data-id="${p.id}"]`);
@@ -187,7 +247,10 @@ function streamRun(runId) {
   on("canvas.anomaly",   (p) => addCard("links-list", "anomaly", "ANOMALY", `${(p.score * 100) | 0}%`, p.detail, true));
   on("canvas.3way_match", (p) => addCard("links-list", "posted", "3-WAY MATCH", `${(p.score * 100) | 0}%`, p.detail));
   on("canvas.quantity_discrepancy", (p) => addCard("links-list", "anomaly", "SHORT-SHIPMENT", `⚠ DIFF`, p.detail, true));
-  on("agent.reasoning", (p) => addAgentReasoningStep(p));
+  on("agent.reasoning", (p) => {
+    setPipelineStep(3);
+    addAgentReasoningStep(p);
+  });
   on("agent.investigation_complete", (p) => updateAgentInvestigation(p));
   on("run.completed", (p) => {
     settled = true;
@@ -198,6 +261,20 @@ function streamRun(runId) {
     showSummary(p);
     es.close();
     $("run-btn").disabled = false;
+    for (let i = 1; i <= 4; i++) {
+      const el = $(`pipe-step-${i}`);
+      if (el) el.className = "pipeline-step completed";
+    }
+    const percPill = $("roster-perception-pill");
+    if (percPill) { percPill.className = "agent-pill done"; percPill.textContent = "Done"; }
+    const arbSeal = $("roster-arbiter-seal");
+    if (arbSeal) {
+      arbSeal.textContent = p.audit_seal?.ledger_hash ? p.audit_seal.ledger_hash.slice(0, 10) + "…" : "SEALED ✓";
+      arbSeal.style.color = "var(--green)";
+    }
+    const tabSwarmBadge = $("tab-swarm-badge");
+    if (tabSwarmBadge) { tabSwarmBadge.className = "tab-badge"; tabSwarmBadge.textContent = "Completed"; }
+    updateLedgerTabBadge();
   });
   on("run.failed", (p) => { settled = true; es.close(); showError(`Run failed: ${p.error || "unknown error"}`); $("run-btn").disabled = false; });
 
@@ -248,6 +325,22 @@ function renderResult(r) {
   
   showSummary({ total_posted_amount: r.total_posted_amount, posted: (r.posted||[]).length,
     quarantined: (r.quarantined||[]).length, links: (r.links||[]).length, documents: r.documents, audit_seal: r.audit_seal });
+  
+  for (let i = 1; i <= 4; i++) {
+    const el = $(`pipe-step-${i}`);
+    if (el) el.className = "pipeline-step completed";
+  }
+  const percPill = $("roster-perception-pill");
+  if (percPill) { percPill.className = "agent-pill done"; percPill.textContent = "Done"; }
+  const arbSeal = $("roster-arbiter-seal");
+  if (arbSeal) {
+    arbSeal.textContent = r.audit_seal?.ledger_hash ? r.audit_seal.ledger_hash.slice(0, 10) + "…" : "SEALED ✓";
+    arbSeal.style.color = "var(--green)";
+  }
+  if ($("roster-docs-count")) $("roster-docs-count").textContent = (r.documents || (r.posted||[]).length + (r.quarantined||[]).length).toString();
+  const tabSwarmBadge = $("tab-swarm-badge");
+  if (tabSwarmBadge) { tabSwarmBadge.className = "tab-badge"; tabSwarmBadge.textContent = "Completed"; }
+  updateLedgerTabBadge();
 }
 
 // ── Renderers ────────────────────────────────────────────────────────────
@@ -888,6 +981,22 @@ function resetPanels() {
   activeClusters = [];
   activeDossier = null;
   metrics = { spans: 0, latency: 0, cost: 0, faithSum: 0, faithN: 0 };
+
+  // Reset War Room Roster
+  setPipelineStep(1);
+  const pPill = $("roster-perception-pill");
+  if (pPill) { pPill.className = "agent-pill ready"; pPill.textContent = "Ready"; }
+  const invPill = $("roster-investigator-pill");
+  if (invPill) { invPill.className = "agent-pill idle"; invPill.textContent = "Standby"; }
+  const dPill = $("roster-dispute-pill");
+  if (dPill) { dPill.className = "agent-pill idle"; dPill.textContent = "Standby"; }
+  const arbPill = $("roster-arbiter-pill");
+  if (arbPill) { arbPill.className = "agent-pill ready"; arbPill.textContent = "Guarded"; }
+  if ($("roster-arbiter-seal")) $("roster-arbiter-seal").textContent = "—";
+  if ($("roster-breaks-count")) $("roster-breaks-count").textContent = "0";
+  if ($("roster-dispute-count")) $("roster-dispute-count").textContent = "0";
+  if ($("tab-swarm-badge")) { $("tab-swarm-badge").className = "tab-badge live"; $("tab-swarm-badge").textContent = "Live Swarm"; }
+  if ($("tab-ledger-badge")) $("tab-ledger-badge").textContent = "0 items";
 }
 
 function cssEscape(s) { return s.replace(/"/g, '\\"'); }
@@ -1436,9 +1545,13 @@ function addAgentReasoningStep(p) {
     if (p.agent_name && p.agent_name.includes("Dispute")) {
       badge.className = "agent-active-badge dispute";
       badge.textContent = "Dispute Action";
+      const dPill = $("roster-dispute-pill");
+      if (dPill) { dPill.className = "agent-pill active"; dPill.textContent = "Drafting Claim"; }
     } else {
       badge.className = "agent-active-badge investigating";
       badge.textContent = "Investigating";
+      const invPill = $("roster-investigator-pill");
+      if (invPill) { invPill.className = "agent-pill active"; invPill.textContent = "Investigating Break"; }
     }
   }
 
@@ -1472,6 +1585,18 @@ function updateAgentInvestigation(p) {
   }
   const dot = document.querySelector(".agent-pulse-dot");
   if (dot) dot.classList.remove("active");
+
+  if (p.status === "RESOLVED_AUTONOMOUSLY") {
+    const bCount = $("roster-breaks-count");
+    if (bCount) bCount.textContent = (parseInt(bCount.textContent || "0") + 1).toString();
+    const invPill = $("roster-investigator-pill");
+    if (invPill) { invPill.className = "agent-pill done"; invPill.textContent = "Break Solved"; }
+  } else if (p.status === "DISPUTE_CLAIM_DRAFTED" || p.debit_note_draft) {
+    const dCount = $("roster-dispute-count");
+    if (dCount) dCount.textContent = (parseInt(dCount.textContent || "0") + 1).toString();
+    const dPill = $("roster-dispute-pill");
+    if (dPill) { dPill.className = "agent-pill done"; dPill.textContent = "Debit Note Issued"; }
+  }
 }
 
 // ── Statutory GST Section 34 Debit Note Modal ────────────────────────────
@@ -1573,3 +1698,35 @@ if ($("download-debit-note-btn")) {
     URL.revokeObjectURL(a.href);
   });
 }
+
+// ── Dispute Recovery Quick Actions ────────────────────────────────────────
+if ($("btn-quick-debit-note")) {
+  $("btn-quick-debit-note").addEventListener("click", () => {
+    if (currentDebitNote) {
+      openDebitNoteModal(currentDebitNote);
+      return;
+    }
+    const invWithDn = (activeInvestigations || []).find((i) => i.debit_note_draft);
+    if (invWithDn) {
+      openDebitNoteModal(invWithDn.debit_note_draft);
+      return;
+    }
+    openDebitNoteModal({
+      debit_note_number: "DN-2026-PREVIEW",
+      date_of_issue: new Date().toISOString().split("T")[0],
+      supplier_details: { legal_name: "Apex Hardware Systems Pvt Ltd", gstin: "27AAACA9999Z1Z5", invoice_reference: "INV-APEX-8841", po_reference: "PO-8841" },
+      recipient_details: { legal_name: "Acme Global Technologies Ltd.", gstin: "29AABCA1234F1Z2" },
+      financial_breakdown: { taxable_value: "10000.00", cgst_rate_9pct: "900.00", sgst_rate_9pct: "900.00", total_debit_amount: "11800.00" },
+      reason_for_issuance: "Discrepancy in quantity and rate as per Section 34(1) of CGST Act 2017 (Short shipment 2 units)",
+      statutory_clauses: [
+        "CGST Act 2017 Section 34(1): Adjustment for deficiency in goods supplied",
+        "CGST Rules 2017 Rule 53: Comprehensive statutory debit note particulars",
+        "Indian Contract Act 1872 Section 73: Compensation for loss caused by breach of contract"
+      ],
+      recovery_notice_letter: "LEGAL NOTICE OF STATUTORY DEBIT CLAIM\nTo: Apex Hardware Systems Pvt Ltd\nRef: PO-8841 / INV-APEX-8841\n\nPlease be advised that upon physical verification (GRN-8841), a short shipment was detected. A statutory debit note in the sum of ₹11,800.00 is hereby issued against your account."
+    });
+  });
+}
+if ($("btn-quick-audit-dossier")) $("btn-quick-audit-dossier").addEventListener("click", openAuditDossierModal);
+if ($("btn-quick-rules")) $("btn-quick-rules").addEventListener("click", openRulesModal);
+
