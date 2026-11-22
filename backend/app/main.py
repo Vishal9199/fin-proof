@@ -11,6 +11,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Union
+
 from .config import get_settings
 from .events import bus
 from .extraction import UploadedDoc, extract_document
@@ -18,7 +21,16 @@ from .graph.reconciliation import run_reconciliation
 from .providers import build_provider
 from .providers.catalog import PROVIDER_INFO
 from .runtime import ConfigError, get_runtime, update_runtime
-from .schemas import RunResult
+from .schemas import (
+    ExtractionResult,
+    ForensicInvestigation,
+    MatchLink,
+    ReconciliationCluster,
+    RootCauseCode,
+    RunResult,
+    Transaction,
+    TxnState,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-5s %(name)s · %(message)s")
 log = logging.getLogger("ledger")
@@ -795,7 +807,7 @@ async def get_statutory_debit_note(run_id: str, item_id: str) -> dict:
 
 # ── Sample data (for dashboard scenario buttons) ─────────────────────────────
 @app.get("/sample-files")
-async def list_sample_files(preset: Optional[str] = None) -> dict:
+async def list_sample_files(preset: str | None = None) -> dict:
     if not _SAMPLE_DATA_DIR.is_dir():
         return {"files": []}
     
