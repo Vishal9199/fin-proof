@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from ..schemas import ExtractionResult, MatchLink, ReconciliationCluster, Transaction
+from ..schemas import ExtractionResult, ForensicInvestigation, MatchLink, ReconciliationCluster, Transaction
 
 
 class GraphState(TypedDict, total=False):
@@ -16,6 +16,7 @@ class GraphState(TypedDict, total=False):
     clusters: list[ReconciliationCluster]
     posted: list[Transaction]
     quarantined: list[Transaction]
+    investigations: list[ForensicInvestigation]  # Autonomous agent investigation reports
     narrative: str                      # AI-generated run summary
     categories_summary: dict[str, float]  # {category: total_amount}
     audit_seal: str

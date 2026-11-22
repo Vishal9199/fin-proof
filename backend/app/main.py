@@ -764,6 +764,35 @@ async def get_vendor_rules() -> dict:
     return {"rules": [r.model_dump(mode="json") for r in rules]}
 
 
+@app.get("/runs/{run_id}/investigations")
+async def get_run_investigations(run_id: str) -> dict:
+    """Return autonomous multi-agent forensic investigations for this run."""
+    res = get_cached_result(run_id)
+    if not res:
+        raise HTTPException(404, f"Run {run_id} not found.")
+    return {
+        "run_id": run_id,
+        "investigations_count": len(res.investigations),
+        "investigations": [inv.model_dump(mode="json") for inv in res.investigations],
+    }
+
+
+@app.get("/runs/{run_id}/debit-notes/{item_id}")
+async def get_statutory_debit_note(run_id: str, item_id: str) -> dict:
+    """Fetch the statutory GST Section 34 Debit Note drafted for a quarantined break."""
+    res = get_cached_result(run_id)
+    if not res:
+        raise HTTPException(404, f"Run {run_id} not found.")
+    for inv in res.investigations:
+        if inv.break_id == item_id or inv.investigation_id == item_id:
+            if inv.debit_note_draft:
+                return {"ok": True, "debit_note": inv.debit_note_draft}
+    for txn in res.quarantined:
+        if txn.id == item_id and txn.investigation and txn.investigation.debit_note_draft:
+            return {"ok": True, "debit_note": txn.investigation.debit_note_draft}
+    raise HTTPException(404, f"No statutory debit note found for {item_id}.")
+
+
 # ── Sample data (for dashboard scenario buttons) ─────────────────────────────
 @app.get("/sample-files")
 async def list_sample_files(preset: Optional[str] = None) -> dict:

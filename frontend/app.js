@@ -7,10 +7,18 @@ const $ = (id) => document.getElementById(id);
 
 let selectedFiles = [];
 let metrics = { spans: 0, latency: 0, cost: 0, faithSum: 0, faithN: 0 };
+  const agentLog = $("agent-reasoning-log");
+  if (agentLog) agentLog.innerHTML = `<div class="agent-empty-hint">Autonomous agents stand by for reconciliation breaks and tax/discount variances…</div>`;
+  const agentBadge = $("agent-active-badge");
+  if (agentBadge) { agentBadge.className = "agent-active-badge idle"; agentBadge.textContent = "Standby"; }
+  const agentDot = document.querySelector(".agent-pulse-dot");
+  if (agentDot) agentDot.classList.remove("active");
 let ledgerState = { posted: [], quarantined: [] };
 let currentRunId = localStorage.getItem("finproof_active_run") || null;
 let activeClusters = [];
 let activeDossier = null;
+let activeInvestigations = [];
+let currentDebitNote = null;
 
 // ── Workspace Profile Switcher (Point 1: Who is this for?) ─────────────────
 document.querySelectorAll(".ws-pill").forEach((pill) => {
@@ -179,10 +187,13 @@ function streamRun(runId) {
   on("canvas.anomaly",   (p) => addCard("links-list", "anomaly", "ANOMALY", `${(p.score * 100) | 0}%`, p.detail, true));
   on("canvas.3way_match", (p) => addCard("links-list", "posted", "3-WAY MATCH", `${(p.score * 100) | 0}%`, p.detail));
   on("canvas.quantity_discrepancy", (p) => addCard("links-list", "anomaly", "SHORT-SHIPMENT", `⚠ DIFF`, p.detail, true));
+  on("agent.reasoning", (p) => addAgentReasoningStep(p));
+  on("agent.investigation_complete", (p) => updateAgentInvestigation(p));
   on("run.completed", (p) => {
     settled = true;
     activeClusters = p.clusters || [];
     activeDossier = p.audit_dossier || null;
+    activeInvestigations = p.investigations || [];
     renderClusters(activeClusters);
     showSummary(p);
     es.close();
@@ -219,6 +230,7 @@ function renderResult(r) {
   ledgerState = { posted: r.posted || [], quarantined: r.quarantined || [] };
   activeClusters = r.clusters || [];
   activeDossier = r.audit_dossier || null;
+  activeInvestigations = r.investigations || [];
   renderClusters(activeClusters);
   (r.links || []).forEach((l) => {
     if (l.kind === "duplicate") addCard("links-list", "duplicate", "DUPLICATE", `${(l.score * 100) | 0}%`, l.detail);
@@ -364,6 +376,54 @@ async function openDiffModal(txn) {
     : v.root_cause_code === "ERR_OCR_UNREADABLE" ? "LOW OCR CONFIDENCE"
     : v.root_cause_code === "ERR_SCHEMA_DRIFT" ? "HEADER SCHEMA DRIFT" : "PRICE & AMOUNT VARIANCE";
 
+    const inv = (txn && txn.investigation) || activeInvestigations.find(i => i.break_id === (txn && txn.id)) || (diffData && diffData.investigation);
+  let agentInvHtml = "";
+  if (inv) {
+    const isResolved = inv.status === "RESOLVED_AUTONOMOUSLY";
+    const statusLabel = isResolved ? "✓ AUTONOMOUSLY RESOLVED BY RE-ACT AGENT" : "⚖️ STATUTORY DISPUTE RECOVERY TRIGGERED";
+    const statusColor = isResolved ? "var(--green)" : "#ff6b35";
+    const statusBg = isResolved ? "rgba(6, 214, 160, 0.08)" : "rgba(255, 107, 53, 0.08)";
+
+    let journalHintHtml = "";
+    if (inv.recommended_entry) {
+      journalHintHtml = `
+        <div style="margin-top: 8px; padding: 8px 10px; background: rgba(0, 180, 216, 0.08); border-radius: 6px; border: 1px solid rgba(0,180,216,0.2);">
+          <div style="font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase;">Agent Recommended Balancing Entry</div>
+          <div style="font-family: var(--font-mono); font-size: 11px; margin-top: 2px;">
+            DR: ${escapeHtml(inv.recommended_entry.dr_account)} (₹${escapeHtml(inv.recommended_entry.dr_amount)})<br>
+            CR: ${escapeHtml(inv.recommended_entry.cr_account)} (₹${escapeHtml(inv.recommended_entry.cr_amount)})
+          </div>
+          <div style="font-size: 10.5px; color: var(--muted); margin-top: 2px;">${escapeHtml(inv.recommended_entry.narration || "")}</div>
+        </div>
+      `;
+    }
+
+    let dnBtnHtml = "";
+    if (inv.debit_note_draft) {
+      const fb = inv.debit_note_draft.financial_breakdown || {};
+      dnBtnHtml = `
+        <div class="debit-note-preview-box">
+          <div class="debit-note-preview-title">
+            <span>📄 GST Section 34 Debit Note Drafted (${escapeHtml(inv.debit_note_draft.debit_note_number)})</span>
+            <button type="button" class="btn-dn-action" id="modal-view-dn-btn">View & Export Debit Note</button>
+          </div>
+          <div>Total Recoverable: <b>₹${escapeHtml(fb.total_debit_amount || inv.variance_amount)}</b> (Taxable: ₹${escapeHtml(fb.taxable_value || "0.00")} + GST ₹${escapeHtml(fb.cgst_rate_9pct || "0.00")}x2)</div>
+        </div>
+      `;
+    }
+
+    agentInvHtml = `
+      <div style="background: ${statusBg}; border: 1px solid ${statusColor}; border-radius: 10px; padding: 12px 14px; margin-top: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11px; font-weight: 800; color: ${statusColor}; font-family: var(--font-mono); letter-spacing: 0.5px;">${statusLabel}</span>
+          <span style="font-size: 10px; color: var(--muted); font-family: var(--font-mono);">${escapeHtml(inv.investigation_id)}</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text);"><b>Proven Cause:</b> ${escapeHtml(inv.proven_root_cause || "Break root cause verified.")}</div>
+        ${journalHintHtml}
+        ${dnBtnHtml}
+      </div>
+    `;
+  }
   let lineItemsHtml = "";
   if (diffData.line_items && diffData.line_items.length) {
     const rows = diffData.line_items.map(li => {
@@ -452,6 +512,9 @@ async function openDiffModal(txn) {
     <!-- Spatial Line-Item Schedule -->
     ${lineItemsHtml}
 
+    <!-- Autonomous Agent Forensic Investigation Dossier -->
+    ${agentInvHtml}
+
     <!-- Financial Impact Consequence Grid -->
     <div class="impact-consequence-grid">
       <div class="impact-box accept">
@@ -510,6 +573,10 @@ async function openDiffModal(txn) {
   // Wire up action buttons
   const cardEl = document.querySelector(`.card[data-id="${txn.id}"]`) || document.querySelector(`#quarantine-list .card`);
 
+  const viewDnBtn = $("modal-view-dn-btn");
+  if (viewDnBtn && inv && inv.debit_note_draft) {
+    viewDnBtn.addEventListener("click", () => openDebitNoteModal(inv.debit_note_draft));
+  }
   const btnAccept = $("modal-act-accept");
   if (btnAccept) {
     btnAccept.addEventListener("click", async () => {
@@ -569,6 +636,15 @@ function addCard(listId, kind, title, right, why, flash = false, txn = null) {
   
   const catHtml = (txn && txn.category && txn.category !== "Other") ? ` <span class="cat-badge">${txn.category}</span>` : "";
   const refHtml = txn && txn.reference_no ? `<span class="ref-badge" title="Reference No">#${escapeHtml(txn.reference_no)}</span> ` : "";
+  const inv = (txn && txn.investigation) || activeInvestigations.find(i => i.break_id === (txn && txn.id));
+  let invBadgeHtml = "";
+  if (inv) {
+    if (inv.status === "RESOLVED_AUTONOMOUSLY") {
+      invBadgeHtml = ` <span class="badge-agent-resolved" title="Resolved autonomously by AI agent">🤖 AUTONOMOUS MATCH</span>`;
+    } else if (inv.status === "DISPUTE_RECOVERY_TRIGGERED") {
+      invBadgeHtml = ` <span class="badge-agent-dispute" title="Statutory dispute initiated">⚖️ DISPUTE TRIGGERED</span>`;
+    }
+  }
   const rc = (txn && txn.root_cause_code) || (txn && txn.discrepancy && txn.discrepancy.root_cause_code);
   let rcBadgeHtml = "";
   if (rc === "ERR_QTY_SHORT_SHIPMENT") {
@@ -582,10 +658,11 @@ function addCard(listId, kind, title, right, why, flash = false, txn = null) {
   }
   
   el.innerHTML =
-    `<div class="row"><span class="merchant">${refHtml}${title}${catHtml}${rcBadgeHtml}</span><span class="amount">${right}</span></div>` +
+    `<div class="row"><span class="merchant">${refHtml}${title}${catHtml}${rcBadgeHtml}${invBadgeHtml}</span><span class="amount">${right}</span></div>` +
     `<div class="why">${why}</div>` +
     (isQ ? `<div class="review-actions">
       <button class="review-btn diff-btn" title="View Evidence Diff & Variance Details">🔍 Evidence Diff</button>
+      ${(inv && inv.debit_note_draft) ? '<button class="review-btn dn-card-btn" style="border-color: #ff6b35; color: #ff6b35;" title="View Statutory Debit Note">📄 Debit Note</button>' : ''}
       <button class="review-btn approve" title="Approve — move to Posted ledger">✓ Approve</button>
       <button class="review-btn reject"  title="Reject — permanently dismiss">✕ Reject</button>
       <button class="review-btn suggest-btn" title="Ask AI how to resolve this conflict">✨ AI Suggest</button>
@@ -594,6 +671,8 @@ function addCard(listId, kind, title, right, why, flash = false, txn = null) {
   if (isQ) {
     const diffBtn = el.querySelector(".diff-btn");
     if (diffBtn) diffBtn.addEventListener("click", () => openDiffModal(txn));
+    const dnCardBtn = el.querySelector(".dn-card-btn");
+    if (dnCardBtn && inv && inv.debit_note_draft) dnCardBtn.addEventListener("click", () => openDebitNoteModal(inv.debit_note_draft));
     el.querySelector(".approve").addEventListener("click", () => approveCard(el, txn));
     el.querySelector(".reject" ).addEventListener("click", () => rejectCard(el, txn));
     el.querySelector(".suggest-btn").addEventListener("click", (e) => suggestResolve(el, txn, e.target));
@@ -1340,4 +1419,157 @@ async function openRulesModal() {
   } catch (err) {
     bodyEl.innerHTML = `<div style="padding: 20px; color: var(--red);">Failed loading rules: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+// ── Autonomous AI Agent Reasoning & ReAct Swarm ──────────────────────────
+function addAgentReasoningStep(p) {
+  const log = $("agent-reasoning-log");
+  if (!log) return;
+  const empty = log.querySelector(".agent-empty-hint");
+  if (empty) empty.remove();
+
+  const dot = document.querySelector(".agent-pulse-dot");
+  if (dot) dot.classList.add("active");
+
+  const badge = $("agent-active-badge");
+  if (badge) {
+    if (p.agent_name && p.agent_name.includes("Dispute")) {
+      badge.className = "agent-active-badge dispute";
+      badge.textContent = "Dispute Action";
+    } else {
+      badge.className = "agent-active-badge investigating";
+      badge.textContent = "Investigating";
+    }
+  }
+
+  const isDispute = p.agent_name && p.agent_name.includes("Dispute");
+  const isResolved = (p.observation || "").includes("CONFIRMED") || (p.thought || "").includes("concluded");
+
+  const entry = document.createElement("div");
+  entry.className = `agent-reasoning-entry ${isDispute ? "dispute" : isResolved ? "resolved" : ""}`;
+
+  let actionHtml = p.action ? `<div class="agent-step-action">⚡ ${escapeHtml(p.action)}</div>` : "";
+  let obsHtml = p.observation ? `<div class="agent-step-observation">👁️ ${escapeHtml(p.observation)}</div>` : "";
+
+  entry.innerHTML = `
+    <div class="agent-step-header">
+      <span class="agent-step-agent">🤖 ${escapeHtml(p.agent_name)}</span>
+      <span>${escapeHtml(p.timestamp || "")}</span>
+    </div>
+    <div class="agent-step-thought">${escapeHtml(p.thought)}</div>
+    ${actionHtml}
+    ${obsHtml}
+  `;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function updateAgentInvestigation(p) {
+  const badge = $("agent-active-badge");
+  if (badge) {
+    badge.className = "agent-active-badge completed";
+    badge.textContent = p.status === "RESOLVED_AUTONOMOUSLY" ? "Break Resolved" : "Dispute Issued";
+  }
+  const dot = document.querySelector(".agent-pulse-dot");
+  if (dot) dot.classList.remove("active");
+}
+
+// ── Statutory GST Section 34 Debit Note Modal ────────────────────────────
+const dnOverlay = $("debit-note-modal-overlay");
+const closeDnModal = () => { if (dnOverlay) dnOverlay.classList.add("hidden"); };
+if ($("dn-modal-close")) $("dn-modal-close").addEventListener("click", closeDnModal);
+if ($("dn-modal-dismiss")) $("dn-modal-dismiss").addEventListener("click", closeDnModal);
+if (dnOverlay) dnOverlay.addEventListener("click", (e) => { if (e.target === dnOverlay) closeDnModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && dnOverlay && !dnOverlay.classList.contains("hidden")) closeDnModal(); });
+
+function openDebitNoteModal(dn) {
+  if (!dn) return;
+  currentDebitNote = dn;
+  const bodyEl = $("debit-note-body");
+  if (!bodyEl) return;
+
+  const fb = dn.financial_breakdown || {};
+  const rec = dn.recipient_details || {};
+  const sup = dn.supplier_details || {};
+
+  bodyEl.innerHTML = `
+    <div class="cert-meta-grid" style="border-left: 4px solid #ff6b35;">
+      <div class="cert-meta-item">
+        <span class="cert-meta-label">Debit Note Reference</span>
+        <span class="cert-meta-val" style="color: #ff6b35;">${escapeHtml(dn.debit_note_number)}</span>
+      </div>
+      <div class="cert-meta-item">
+        <span class="cert-meta-label">Date of Issuance</span>
+        <span class="cert-meta-val">${escapeHtml(dn.date_of_issue)}</span>
+      </div>
+      <div class="cert-meta-item">
+        <span class="cert-meta-label">Recipient (Issuing Entity)</span>
+        <span class="cert-meta-val">${escapeHtml(rec.legal_name || "Acme Global Technologies Ltd.")}</span>
+      </div>
+      <div class="cert-meta-item">
+        <span class="cert-meta-label">Supplier (Debited Party)</span>
+        <span class="cert-meta-val">${escapeHtml(sup.legal_name || "Supplier")}</span>
+      </div>
+      <div class="cert-meta-item">
+        <span class="cert-meta-label">Original Tax Invoice</span>
+        <span class="cert-meta-val">${escapeHtml(sup.invoice_reference || "N/A")}</span>
+      </div>
+      <div class="cert-meta-item">
+        <span class="cert-meta-label">Purchase Order</span>
+        <span class="cert-meta-val">${escapeHtml(sup.po_reference || "N/A")}</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="cert-section-title" style="color: #ff6b35;">📊 Statutory Tax Breakdown (Rule 53 CGST Rules)</div>
+      <table class="cert-table">
+        <thead>
+          <tr>
+            <th>Line Item / Reason</th>
+            <th>Base Taxable</th>
+            <th>CGST (9%)</th>
+            <th>SGST (9%)</th>
+            <th>Total Debit Claim</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>${escapeHtml(dn.reason_for_issuance || "Short shipment / price variance")}</b></td>
+            <td>₹${escapeHtml(fb.taxable_value || "0.00")}</td>
+            <td>₹${escapeHtml(fb.cgst_rate_9pct || "0.00")}</td>
+            <td>₹${escapeHtml(fb.sgst_rate_9pct || "0.00")}</td>
+            <td style="color: #ff6b35; font-weight: 700;">₹${escapeHtml(fb.total_debit_amount || "0.00")}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <div class="cert-section-title">⚖️ Legal Grounds & Statutory Declarations</div>
+      <div class="cert-declarations">
+        ${(dn.statutory_clauses || []).map(c => `<div class="cert-decl-item">• ${escapeHtml(c)}</div>`).join("")}
+      </div>
+    </div>
+
+    <div>
+      <div class="cert-section-title">✉️ Formal Legal Commercial Recovery Notice</div>
+      <pre style="background: rgba(8,9,12,0.6); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--text); white-space: pre-wrap; line-height: 1.5;">${escapeHtml(dn.recovery_notice_letter || "")}</pre>
+    </div>
+  `;
+
+  if (dnOverlay) dnOverlay.classList.remove("hidden");
+}
+
+if ($("download-debit-note-btn")) {
+  $("download-debit-note-btn").addEventListener("click", () => {
+    if (!currentDebitNote) return;
+    const content = currentDebitNote.recovery_notice_letter || JSON.stringify(currentDebitNote, null, 2);
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `${currentDebitNote.debit_note_number || 'debit-note'}.txt`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
 }

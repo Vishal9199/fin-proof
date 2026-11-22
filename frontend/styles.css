@@ -758,11 +758,202 @@ body {
 }
 .cert-seal-hash { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); word-break: break-all; margin-top: 4px; }
 
-/* ── Print Styles for Statutory Dossier ──────────────────────────────────── */
+/* ── Autonomous ReAct Swarm Console & AgentOps ───────────────────────────── */
+.agent-swarm-section {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.agent-swarm-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(14, 16, 22, 0.7);
+  border-bottom: 1px solid var(--border);
+}
+.agent-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: all 0.3s;
+}
+.agent-pulse-dot.active {
+  background: #06d6a0;
+  box-shadow: 0 0 10px #06d6a0;
+  animation: pulse-glow 1.5s infinite;
+}
+@keyframes pulse-glow {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+.agent-swarm-title {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+.agent-active-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.agent-active-badge.idle {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.agent-active-badge.investigating {
+  background: rgba(0, 180, 216, 0.15);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.agent-active-badge.dispute {
+  background: rgba(255, 107, 53, 0.15);
+  color: #ff6b35;
+  border: 1px solid #ff6b35;
+}
+.agent-active-badge.completed {
+  background: rgba(6, 214, 160, 0.15);
+  color: #06d6a0;
+  border: 1px solid #06d6a0;
+}
+.agent-reasoning-log {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+}
+.agent-empty-hint {
+  color: var(--muted);
+  font-style: italic;
+  padding: 12px 6px;
+  text-align: center;
+}
+.agent-reasoning-entry {
+  background: rgba(8, 9, 12, 0.5);
+  border-left: 3px solid var(--accent);
+  padding: 8px 10px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.agent-reasoning-entry.dispute {
+  border-left-color: #ff6b35;
+}
+.agent-reasoning-entry.resolved {
+  border-left-color: #06d6a0;
+}
+.agent-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+}
+.agent-step-agent {
+  font-weight: 700;
+  color: var(--accent);
+}
+.agent-reasoning-entry.dispute .agent-step-agent {
+  color: #ff6b35;
+}
+.agent-step-thought {
+  color: var(--text);
+  line-height: 1.4;
+}
+.agent-step-action {
+  color: #ffd166;
+  background: rgba(255, 209, 102, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  display: inline-block;
+  margin-top: 2px;
+}
+.agent-step-observation {
+  color: #a0c4ff;
+  border-left: 2px solid #a0c4ff;
+  padding-left: 6px;
+  font-size: 10.5px;
+  margin-top: 2px;
+}
+
+/* ── Badges & Debit Note Preview ─────────────────────────────────────────── */
+.badge-agent-resolved {
+  font-size: 9.5px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(6, 214, 160, 0.15);
+  color: #06d6a0;
+  border: 1px solid #06d6a0;
+  margin-left: 6px;
+}
+.badge-agent-dispute {
+  font-size: 9.5px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 107, 53, 0.15);
+  color: #ff6b35;
+  border: 1px solid #ff6b35;
+  margin-left: 6px;
+}
+.debit-note-preview-box {
+  background: rgba(255, 107, 53, 0.05);
+  border: 1px dashed rgba(255, 107, 53, 0.4);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.debit-note-preview-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  color: #ff6b35;
+  margin-bottom: 8px;
+}
+.btn-dn-action {
+  background: #ff6b35;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-dn-action:hover {
+  opacity: 0.9;
+}
+
+/* ── Print Styles for Statutory Dossier & Debit Notes ────────────────────── */
 @media print {
   body * { visibility: hidden; }
-  #audit-dossier-modal-overlay, #audit-dossier-modal-overlay * { visibility: visible; }
-  #audit-dossier-modal-overlay { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 0; }
+  #audit-dossier-modal-overlay, #audit-dossier-modal-overlay *,
+  #debit-note-modal-overlay, #debit-note-modal-overlay * { visibility: visible; }
+  #audit-dossier-modal-overlay, #debit-note-modal-overlay { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; padding: 0; }
   .audit-dossier-modal { max-width: 100%; border: none; box-shadow: none; background: #fff !important; color: #000 !important; }
   .cert-table, .cert-meta-grid, .cert-signoff-grid { background: #f8f9fa !important; color: #000 !important; border-color: #ccc !important; }
   .cert-table td, .cert-table th { color: #000 !important; border-color: #ddd !important; }

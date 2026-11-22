@@ -149,6 +149,24 @@
     </div>
   </div>
 
+  <!-- Statutory GST Section 34 Debit Note Modal -->
+  <div id="debit-note-modal-overlay" class="modal-overlay hidden">
+    <div class="modal audit-dossier-modal" role="dialog" aria-modal="true" aria-labelledby="dn-title">
+      <header class="modal-head cert-head" style="border-bottom-color: #ff6b35;">
+        <div>
+          <div class="cert-corp-name" style="color: #ff6b35;">STATUTORY DEBIT NOTE & COMMERCIAL RECOVERY DOSSIER · CGST ACT 2017 SEC 34</div>
+          <h2 id="dn-title">📄 GST Section 34 Statutory Debit Note</h2>
+        </div>
+        <button type="button" id="dn-modal-close" class="icon-btn" title="Close">✕</button>
+      </header>
+      <div id="debit-note-body" class="audit-dossier-body"></div>
+      <footer class="modal-foot cert-foot">
+        <button type="button" id="download-debit-note-btn" class="btn-primary" style="background: #ff6b35;">⬇ Download Statutory Notice (.txt)</button>
+        <button type="button" id="dn-modal-dismiss" class="btn-ghost">Close</button>
+      </footer>
+    </div>
+  </div>
+
   <div id="error-banner" class="error-banner hidden"></div>
 
   <div id="dropzone" class="dropzone">
@@ -198,16 +216,29 @@
       <div id="links-list" class="card-list"></div>
     </section>
 
-    <!-- Panel 3: AgentOps -->
+    <!-- Panel 3: AgentOps & Autonomous Swarm -->
     <section class="panel">
-      <h2>📊 AgentOps</h2>
-      <p class="panel-sub">Every reasoning step traced, scored, timed, costed.</p>
+      <h2>🧠 Autonomous Swarm & AgentOps</h2>
+      <p class="panel-sub">ReAct loop (Thought ➜ Tool Execution ➜ Observation) & trace metrics.</p>
       <div class="metrics">
         <div class="metric"><span id="m-spans">0</span><label>spans</label></div>
         <div class="metric"><span id="m-latency">0<small>ms</small></span><label>total latency</label></div>
         <div class="metric"><span id="m-cost">$0.00</span><label>est. cost</label></div>
         <div class="metric"><span id="m-faith">—</span><label>avg faithfulness</label></div>
       </div>
+
+      <!-- Live Autonomous ReAct Swarm Console -->
+      <div class="agent-swarm-section">
+        <div class="agent-swarm-head">
+          <span class="agent-pulse-dot"></span>
+          <span class="agent-swarm-title">Autonomous ReAct Swarm</span>
+          <span id="agent-active-badge" class="agent-active-badge idle">Standby</span>
+        </div>
+        <div id="agent-reasoning-log" class="agent-reasoning-log">
+          <div class="agent-empty-hint">Autonomous agents stand by for reconciliation breaks and tax/discount variances…</div>
+        </div>
+      </div>
+
       <div id="trace-log" class="trace-log"></div>
     </section>
   </main>

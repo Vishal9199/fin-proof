@@ -17,6 +17,7 @@ from ..ai_enrichment import (
     build_categories_summary, enrich_transaction,
     generate_anomaly_explanation, generate_narrative,
 )
+from ..agents.orchestrator import run_agentic_investigation_swarm
 from ..events import bus
 from ..extraction.verify import verify
 from ..schemas import MatchLink, ReconciliationCluster, RunResult, Transaction, TxnState
@@ -220,19 +221,42 @@ async def node_enrich(state: GraphState) -> GraphState:
     return state
 
 
+async def node_investigate(state: GraphState) -> GraphState:
+    """Autonomous multi-agent forensic investigation pass over quarantined breaks."""
+    run_id = state["run_id"]
+    quarantined = state.get("quarantined", [])
+    clusters = state.get("clusters", [])
+    all_txns = state.get("transactions", []) + quarantined
+    try:
+        investigations = await run_agentic_investigation_swarm(
+            run_id=run_id,
+            quarantined=quarantined,
+            clusters=clusters,
+            all_transactions=all_txns,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger("ledger").warning("investigation swarm failed: %s", e)
+        investigations = []
+    state["investigations"] = investigations
+    return state
+
+
 def _route_after_verify(state: GraphState) -> str:
-    return "reconcile" if len(state.get("transactions", [])) >= 2 else "post"
+    return "reconcile" if len(state.get("transactions", [])) >= 2 else "investigate"
 
 
 def build_graph():
     g = StateGraph(GraphState)
     g.add_node("verify", node_verify)
     g.add_node("reconcile", node_reconcile)
+    g.add_node("investigate", node_investigate)
     g.add_node("post", node_post)
     g.add_node("enrich", node_enrich)
     g.set_entry_point("verify")
-    g.add_conditional_edges("verify", _route_after_verify, {"reconcile": "reconcile", "post": "post"})
-    g.add_edge("reconcile", "post")
+    g.add_conditional_edges("verify", _route_after_verify, {"reconcile": "reconcile", "investigate": "investigate"})
+    g.add_edge("reconcile", "investigate")
+    g.add_edge("investigate", "post")
     g.add_edge("post", "enrich")
     g.add_edge("enrich", END)
     return g.compile()
@@ -250,6 +274,7 @@ async def run_reconciliation(run_id: str, extractions: list, match_threshold: fl
         "quarantined": [],
         "links": [],
         "posted": [],
+        "investigations": [],
     })
     posted = final.get("posted", [])
     return RunResult(
@@ -264,5 +289,6 @@ async def run_reconciliation(run_id: str, extractions: list, match_threshold: fl
         categories_summary=final.get("categories_summary", {}),
         audit_seal=final.get("audit_seal"),
         audit_dossier=final.get("audit_dossier"),
+        investigations=final.get("investigations", []),
         workspace_mode=final.get("workspace_mode", "general"),
     )

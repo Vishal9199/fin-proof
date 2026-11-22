@@ -34,43 +34,38 @@ class EventBus:
         # Insertion-ordered so we can evict the oldest finished run first.
         self._history: "OrderedDict[str, list[dict]]" = OrderedDict()
         self._terminated: set[str] = set()
-        self._lock = asyncio.Lock()
         self._max_runs = max_runs
 
     async def subscribe(self, run_id: str) -> asyncio.Queue:
         """Attach a listener. The returned queue is pre-loaded with the run's
         full event history (replay), then receives every subsequent event."""
         q: asyncio.Queue = asyncio.Queue()
-        async with self._lock:
-            for event in self._history.get(run_id, []):
-                q.put_nowait(event)
-            self._subscribers.setdefault(run_id, []).append(q)
+        for event in self._history.get(run_id, []):
+            q.put_nowait(event)
+        self._subscribers.setdefault(run_id, []).append(q)
         return q
 
     async def unsubscribe(self, run_id: str, q: asyncio.Queue) -> None:
-        async with self._lock:
-            subs = self._subscribers.get(run_id, [])
-            if q in subs:
-                subs.remove(q)
-            if not subs:
-                self._subscribers.pop(run_id, None)
+        subs = self._subscribers.get(run_id, [])
+        if q in subs:
+            subs.remove(q)
+        if not subs:
+            self._subscribers.pop(run_id, None)
 
     async def publish(self, run_id: str, event_type: str, payload: dict[str, Any]) -> None:
         event = {"type": event_type, "payload": payload}
-        async with self._lock:
-            hist = self._history.get(run_id)
-            if hist is None:
-                hist = []
-                self._history[run_id] = hist
-                self._evict_locked()
-            hist.append(event)
-            self._history.move_to_end(run_id)
-            if event_type in TERMINAL_EVENTS:
-                self._terminated.add(run_id)
-            # Unbounded queues → put_nowait never blocks; fan-out stays ordered
-            # with respect to the history append because both are under the lock.
-            for q in self._subscribers.get(run_id, []):
-                q.put_nowait(event)
+        hist = self._history.get(run_id)
+        if hist is None:
+            hist = []
+            self._history[run_id] = hist
+            self._evict_locked()
+        hist.append(event)
+        self._history.move_to_end(run_id)
+        if event_type in TERMINAL_EVENTS:
+            self._terminated.add(run_id)
+        # Unbounded queues → put_nowait never blocks; fan-out stays ordered
+        for q in self._subscribers.get(run_id, []):
+            q.put_nowait(event)
 
     def is_terminated(self, run_id: str) -> bool:
         return run_id in self._terminated

@@ -52,6 +52,34 @@ class JournalEntry(BaseModel):
     narration: str
 
 
+class AgentToolCall(BaseModel):
+    tool_name: str
+    tool_input: dict
+    tool_output: dict
+
+
+class AgentReasoningStep(BaseModel):
+    agent_name: str
+    thought: str
+    action: Optional[str] = None
+    observation: Optional[str] = None
+    timestamp: str
+
+
+class ForensicInvestigation(BaseModel):
+    investigation_id: str
+    break_id: str
+    vendor_merchant: str
+    variance_amount: Decimal
+    status: Literal["RESOLVED_AUTONOMOUSLY", "DISPUTE_RECOVERY_TRIGGERED", "UNRESOLVED_REQUIRES_HITL"]
+    primary_hypothesis: str
+    reasoning_steps: list[AgentReasoningStep] = Field(default_factory=list)
+    tool_calls: list[AgentToolCall] = Field(default_factory=list)
+    proven_root_cause: Optional[str] = None
+    recommended_entry: Optional[dict] = None
+    debit_note_draft: Optional[dict] = None
+
+
 class ReconciliationCluster(BaseModel):
     cluster_id: str
     reference_no: str
@@ -65,6 +93,7 @@ class ReconciliationCluster(BaseModel):
     net_variance: Decimal = Decimal("0.00")
     root_cause_code: Optional[RootCauseCode] = None
     adjusting_journal: list[JournalEntry] = Field(default_factory=list)
+    investigation: Optional[ForensicInvestigation] = None
     document_names: list[str] = Field(default_factory=list)
     txn_ids: list[str] = Field(default_factory=list)
 
@@ -94,6 +123,7 @@ class Transaction(BaseModel):
     audit_hash: Optional[str] = None      # Cryptographic SHA-256 seal for tamper-evidence
     root_cause_code: Optional[RootCauseCode] = None
     adjusting_journal: list[JournalEntry] = Field(default_factory=list)
+    investigation: Optional[ForensicInvestigation] = None
 
     @field_validator("amount")
     @classmethod
@@ -156,4 +186,5 @@ class RunResult(BaseModel):
     categories_summary: dict[str, float] = Field(default_factory=dict)  # {category: total_amount}
     audit_seal: Optional[str] = None                   # SHA-256 seal of the posted ledger
     audit_dossier: Optional[dict] = None               # Statutory reconciliation certificate & audit pack
+    investigations: list[ForensicInvestigation] = Field(default_factory=list)  # Autonomous agent investigation reports
     workspace_mode: str = "general"                    # active reconciliation profile
